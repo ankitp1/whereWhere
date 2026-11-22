@@ -25,6 +25,8 @@ export interface Participant {
 export interface DateSlotOption {
   id: string;
   label: string;
+  date?: string; // YYYY-MM-DD
+  timeWindow?: "dinner" | "lunch" | "brunch" | "drinks" | "custom";
   vetoedBy: string | null; // participantId or null
 }
 

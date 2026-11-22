@@ -1,11 +1,15 @@
 import { ConstraintItem, DateSlotOption, Participant } from "@/types/session";
+import { generateId } from "./crypto";
 
 export interface ParsedSessionIntent {
   topic: string;
   expectedHeadcount: number;
+  hostName: string;
+  participantNames: string[];
   participants: Record<string, Participant>;
   constraints: ConstraintItem[];
   dateSlots: DateSlotOption[];
+  detectedTimeWindow: "dinner" | "lunch" | "brunch" | "drinks";
   clarifiers: Array<{
     id: string;
     question: string;
@@ -16,16 +20,17 @@ export interface ParsedSessionIntent {
 
 export async function parseMessyIntent(
   rawInput: string,
-  referenceDate: Date = new Date("2026-11-21T20:20:00Z")
+  referenceDate?: Date
 ): Promise<ParsedSessionIntent> {
   const text = rawInput.trim();
   const lower = text.toLowerCase();
+  const refDate = referenceDate || new Date();
 
   // Try using Gemini API if key is available in environment
   const geminiKey = process.env.GEMINI_API_KEY;
   if (geminiKey) {
     try {
-      const geminiResult = await callGeminiParser(text, referenceDate, geminiKey);
+      const geminiResult = await callGeminiParser(text, refDate, geminiKey);
       if (geminiResult) return geminiResult;
     } catch (err) {
       console.warn("Gemini parser failed, falling back to rule-based parser:", err);
@@ -33,23 +38,32 @@ export async function parseMessyIntent(
   }
 
   // Smart Deterministic NLP Parser
-  return parseWithRules(text, lower, referenceDate);
+  return parseWithRules(text, lower, refDate);
 }
 
 function parseWithRules(text: string, lower: string, refDate: Date): ParsedSessionIntent {
-  // 1. Extract Headcount & Names
-  const participants: Record<string, Participant> = {};
-  let expectedHeadcount = 8;
+  // 1. Detect Time Window
+  let detectedTimeWindow: "dinner" | "lunch" | "brunch" | "drinks" = "dinner";
+  let windowTitle = "Dinner";
+  if (/brunch/i.test(lower)) {
+    detectedTimeWindow = "brunch";
+    windowTitle = "Brunch";
+  } else if (/lunch/i.test(lower)) {
+    detectedTimeWindow = "lunch";
+    windowTitle = "Lunch";
+  } else if (/drinks|happy\s*hour|cocktail/i.test(lower)) {
+    detectedTimeWindow = "drinks";
+    windowTitle = "Happy Hour";
+  }
 
-  // Look for headcount patterns like "8 of us", "for 8", "10 people"
+  // 2. Extract Headcount & Names
+  let expectedHeadcount = 8;
   const headcountMatch = lower.match(/(\d+)\s*(?:of us|people|friends|guests|folks)?/);
   if (headcountMatch) {
     expectedHeadcount = parseInt(headcountMatch[1], 10);
   }
 
-  // Look for names list: e.g. "Ankit, Raj, Priya, Mike, Sarah, Dan, Maya, Tom" or "with John, Mary & Bob"
-  // Look after em-dash "—", hyphen "-", "with", "for X: "
-  const nameSectionMatch = text.match(/(?:—|-|with|including|for \d+ of us[:\s—-]+)([^.]+?)(?:\.|\n|not|midtown|veg|kid|$)/i);
+  const nameSectionMatch = text.match(/(?:—|-|with|including|for \d+ of us[:\s—-]+)([^.]+?)(?:\.|\n|not|midtown|beltline|buckhead|west|veg|kid|$)/i);
   let rawNames: string[] = [];
 
   if (nameSectionMatch) {
@@ -60,18 +74,21 @@ function parseWithRules(text: string, lower: string, refDate: Date): ParsedSessi
       .filter((s) => s.length > 1 && !/^(us|we|people|them|everyone|all)$/i.test(s));
   }
 
-  // Fallback: search common words capitalized or default list if empty
   if (rawNames.length === 0) {
     const defaultNames = ["Ankit", "Raj", "Priya", "Mike", "Sarah", "Dan", "Maya", "Tom"];
     rawNames = defaultNames.slice(0, Math.max(expectedHeadcount, 4));
   }
 
+  const hostName = rawNames[0] || "You";
+  const participants: Record<string, Participant> = {};
+
+  // Fix Item 4: Use random unique IDs so friends with same name never collide!
   rawNames.forEach((name, idx) => {
-    const safeId = `p_${name.toLowerCase().replace(/[^a-z0-9]/g, "") || "user" + (idx + 1)}`;
+    const safeId = generateId("p", 6);
     participants[safeId] = {
       name,
       status: idx === 0 ? "done" : "pending",
-      isClaimed: idx === 0, // Organizer is claimed by default
+      isClaimed: idx === 0,
       vetoUsed: false,
       objectionUsed: false,
       acknowledgedLock: false,
@@ -85,10 +102,8 @@ function parseWithRules(text: string, lower: string, refDate: Date): ParsedSessi
     expectedHeadcount = Math.max(expectedHeadcount, Object.keys(participants).length);
   }
 
-  // 2. Extract Constraints
+  // 3. Extract Constraints
   const constraints: ConstraintItem[] = [];
-
-  // Excluded days: "not tuesday", "no wednesday", "avoid mondays"
   const dayNames = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
   const dayMap: Record<string, number> = {
     sunday: 0,
@@ -113,12 +128,12 @@ function parseWithRules(text: string, lower: string, refDate: Date): ParsedSessi
     }
   });
 
-  // Dietary constraints
+  // Dietary constraints (Fix: Clean consumer labels without "Likely" prefix)
   if (/veg(?:an|etarian)?/i.test(lower)) {
     constraints.push({
       id: "c_veg",
       type: "dietary",
-      label: "Likely vegetarian-friendly",
+      label: "Vegetarian-friendly",
       confirmed: true,
     });
   }
@@ -152,12 +167,12 @@ function parseWithRules(text: string, lower: string, refDate: Date): ParsedSessi
     constraints.push({
       id: "c_kid",
       type: "kid_friendly",
-      label: "Likely kid-friendly",
+      label: "Kid-friendly",
       confirmed: true,
     });
   }
 
-  // Neighborhood / Area (prioritizing Atlanta neighborhoods)
+  // Atlanta Neighborhoods
   const neighborhoods = [
     "West Midtown",
     "Midtown Atlanta",
@@ -173,7 +188,6 @@ function parseWithRules(text: string, lower: string, refDate: Date): ParsedSessi
     "Cabbagetown",
     "Midtown",
     "Downtown Atlanta",
-    "Downtown",
   ];
   let matchedArea = "Midtown Atlanta";
   for (const n of neighborhoods) {
@@ -189,51 +203,53 @@ function parseWithRules(text: string, lower: string, refDate: Date): ParsedSessi
     confirmed: true,
   });
 
-  // 3. Generate Candidate Date Slots
-  // Based on "next week" and reference date (Sat Nov 21, 2026)
-  // Next week: Monday Nov 23 - Sunday Nov 29, 2026.
+  // 4. Generate Candidate Date Slots starting from reference date
   const dateSlots: DateSlotOption[] = [];
   const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
   const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
 
-  // Find next Monday
-  const currentDayOfWeek = refDate.getUTCDay();
-  const daysUntilNextMon = ((8 - currentDayOfWeek) % 7) || 7;
-  const nextMonday = new Date(refDate);
-  nextMonday.setUTCDate(refDate.getUTCDate() + daysUntilNextMon);
+  // Find upcoming Thursday, Friday, Saturday, Sunday
+  const candidateOffsets = [3, 4, 5, 6]; // Thu, Fri, Sat, Sun
 
-  // Default candidates: Wednesday, Thursday, Friday, Saturday of next week
-  const candidateOffsets = [2, 3, 4, 5]; // Wed, Thu, Fri, Sat
+  // Base day
+  const baseDayOfWeek = refDate.getDay();
+  const daysUntilNextWed = ((3 - baseDayOfWeek + 7) % 7) || 7;
+  const startTarget = new Date(refDate);
+  startTarget.setDate(refDate.getDate() + daysUntilNextWed);
 
-  candidateOffsets.forEach((offset) => {
-    const candidate = new Date(nextMonday);
-    candidate.setUTCDate(nextMonday.getUTCDate() + (offset - 1));
-    const dayOfWeekIdx = candidate.getUTCDay();
+  candidateOffsets.forEach((offset, idx) => {
+    const candidate = new Date(startTarget);
+    candidate.setDate(startTarget.getDate() + idx);
+    const dayOfWeekIdx = candidate.getDay();
 
-    // Skip if excluded
     if (excludedDays.includes(dayOfWeekIdx)) return;
 
     const dayName = daysOfWeek[dayOfWeekIdx];
-    const monthName = months[candidate.getUTCMonth()];
-    const dateNum = candidate.getUTCDate();
-    const year = candidate.getUTCFullYear();
-    const monthPadded = String(candidate.getUTCMonth() + 1).padStart(2, "0");
+    const monthName = months[candidate.getMonth()];
+    const dateNum = candidate.getDate();
+    const year = candidate.getFullYear();
+    const monthPadded = String(candidate.getMonth() + 1).padStart(2, "0");
     const datePadded = String(dateNum).padStart(2, "0");
 
-    const slotId = `${year}-${monthPadded}-${datePadded}_PM`;
+    const dateIso = `${year}-${monthPadded}-${datePadded}`;
+    // Fix Item 5: Slot ID & Time window reflect the selected window
+    const slotId = `${dateIso}_${detectedTimeWindow}`;
+
     dateSlots.push({
       id: slotId,
-      label: `${dayName}, ${monthName} ${dateNum} • Evening`,
+      date: dateIso,
+      timeWindow: detectedTimeWindow,
+      label: `${dayName}, ${monthName} ${dateNum} • ${windowTitle}`,
       vetoedBy: null,
     });
   });
 
-  // 4. Quick tap clarifiers (max 1-2)
+  // 5. Clarifiers
   const clarifiers = [
     {
       id: "time_preference",
-      question: "Preferred dinner time window?",
-      options: ["Early Evening (6:30 PM)", "Prime Time (7:30 PM)", "Late Dinner (8:30 PM)"],
+      question: `Preferred ${windowTitle.toLowerCase()} time window?`,
+      options: ["Early (6:30 PM)", "Prime Time (7:30 PM)", "Late (8:30 PM)"],
       selected: "Prime Time (7:30 PM)",
     },
     {
@@ -244,19 +260,15 @@ function parseWithRules(text: string, lower: string, refDate: Date): ParsedSessi
     },
   ];
 
-  // Topic
-  let topic = "Dinner with Friends";
-  if (/dinner/i.test(lower)) topic = `Dinner in ${matchedArea}`;
-  else if (/lunch/i.test(lower)) topic = `Lunch in ${matchedArea}`;
-  else if (/drinks|happy hour/i.test(lower)) topic = `Drinks in ${matchedArea}`;
-  else if (/coffee|brunch/i.test(lower)) topic = `Brunch in ${matchedArea}`;
-
   return {
-    topic,
+    topic: `${windowTitle} in ${matchedArea}`,
     expectedHeadcount,
+    hostName,
+    participantNames: rawNames,
     participants,
     constraints,
     dateSlots,
+    detectedTimeWindow,
     clarifiers,
   };
 }
@@ -267,18 +279,17 @@ async function callGeminiParser(
   apiKey: string
 ): Promise<ParsedSessionIntent | null> {
   const url = `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`;
-  const prompt = `You are the backend parser for SyncUp, a zero-signup group coordination app.
-Extract structured meetup information from this organizer's prompt: "${text}".
-Current reference date is ${refDate.toISOString()}.
-Output ONLY a JSON object matching this schema:
+  const prompt = `You are the backend parser for SyncUp, an Atlanta-focused group coordination app.
+Extract structured meetup information from: "${text}".
+Reference date is ${refDate.toISOString()}.
+Output ONLY a JSON object:
 {
   "topic": "string",
   "expectedHeadcount": number,
   "names": ["string"],
-  "excludedDays": ["string"], // e.g. "Tuesday"
-  "dietary": ["string"], // e.g. "Likely vegetarian-friendly"
-  "area": "string", // e.g. "Midtown"
-  "kidFriendly": boolean
+  "excludedDays": ["string"],
+  "dietary": ["string"],
+  "area": "string"
 }`;
 
   const res = await fetch(url, {
@@ -296,7 +307,6 @@ Output ONLY a JSON object matching this schema:
   if (!rawJson) return null;
 
   const parsed = JSON.parse(rawJson);
-  // Convert into ParsedSessionIntent using parseWithRules as base
   const base = parseWithRules(text, text.toLowerCase(), refDate);
   if (parsed.topic) base.topic = parsed.topic;
   if (parsed.expectedHeadcount) base.expectedHeadcount = parsed.expectedHeadcount;

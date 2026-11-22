@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import {
   Sparkles,
@@ -30,51 +30,52 @@ import {
   Moon,
   Coffee,
   GlassWater,
-  ListOrdered,
   ChevronDown,
   ChevronUp,
+  ShieldAlert,
+  KeyRound,
+  ExternalLink,
 } from "lucide-react";
-import { ParsedSessionIntent } from "@/lib/server/parser";
 import { ConstraintItem, DateSlotOption } from "@/types/session";
 
 // Authentic Atlanta Presets
 const PROMPT_PRESETS = [
   {
     emoji: "🥘",
-    label: "Midtown Atlanta (8 friends)",
+    label: "Midtown Atlanta (Dinner)",
     text: "Dinner next week for 8 of us—Ankit, Raj, Priya, Mike, Sarah, Dan, Maya, Tom. Not Tuesday. Midtown Atlanta, veg & kid-friendly",
     area: "Midtown Atlanta",
-    timeWindow: "dinner",
+    timeWindow: "dinner" as const,
   },
   {
     emoji: "☀️",
-    label: "BeltLine / Inman Park Brunch",
+    label: "BeltLine / Inman Park (Brunch)",
     text: "Saturday brunch on the Atlanta BeltLine around Inman Park with Sarah, Dan, Chloe & Leo. Patio & kid-friendly",
     area: "BeltLine / Inman Park",
-    timeWindow: "brunch",
+    timeWindow: "brunch" as const,
   },
   {
     emoji: "🍕",
-    label: "Westside / West Midtown",
+    label: "West Midtown (Dinner)",
     text: "Dinner this Thursday in West Midtown near Howell Mill with Dave, Elena, Sam & Priya. Good cocktails & gluten-free options",
     area: "West Midtown",
-    timeWindow: "dinner",
+    timeWindow: "dinner" as const,
   },
   {
     emoji: "🍸",
-    label: "Buckhead Happy Hour",
+    label: "Buckhead (Happy Hour)",
     text: "Friday drinks after work in Buckhead with the team. Good patio & cocktails",
     area: "Buckhead",
-    timeWindow: "drinks",
+    timeWindow: "drinks" as const,
   },
 ];
 
 // Interactive Time Window Filters
 const TIME_WINDOWS = [
-  { id: "dinner", label: "Dinner", time: "6:30 – 8:30 PM", icon: Moon, emoji: "🌙" },
-  { id: "drinks", label: "Happy Hour", time: "5:00 – 7:00 PM", icon: GlassWater, emoji: "🍸" },
-  { id: "lunch", label: "Lunch", time: "12:00 – 2:00 PM", icon: Sun, emoji: "☀️" },
-  { id: "brunch", label: "Brunch", time: "10:30 AM – 1:00 PM", icon: Coffee, emoji: "🥞" },
+  { id: "dinner", label: "Dinner", time: "6:30 – 8:30 PM", emoji: "🌙" },
+  { id: "drinks", label: "Happy Hour", time: "5:00 – 7:00 PM", emoji: "🍸" },
+  { id: "lunch", label: "Lunch", time: "12:00 – 2:00 PM", emoji: "☀️" },
+  { id: "brunch", label: "Brunch", time: "10:30 AM – 1:00 PM", emoji: "🥞" },
 ];
 
 // Atlanta Neighborhood Quick Toggles
@@ -90,8 +91,8 @@ const ATLANTA_NEIGHBORHOODS = [
 
 // Dietary & Atmosphere Filter Badges
 const PRESET_FILTERS = [
-  { id: "c_veg", emoji: "🥦", label: "Likely vegetarian-friendly", type: "dietary" as const },
-  { id: "c_kid", emoji: "👶", label: "Likely kid-friendly", type: "kid_friendly" as const },
+  { id: "c_veg", emoji: "🥦", label: "Vegetarian-friendly", type: "dietary" as const },
+  { id: "c_kid", emoji: "👶", label: "Kid-friendly", type: "kid_friendly" as const },
   { id: "c_patio", emoji: "☀️", label: "Outdoor patio", type: "other" as const },
   { id: "c_bar", emoji: "🍸", label: "Full bar / Cocktails", type: "vibe" as const },
   { id: "c_gf", emoji: "🌾", label: "Gluten-free options", type: "dietary" as const },
@@ -99,16 +100,37 @@ const PRESET_FILTERS = [
   { id: "c_halal", emoji: "🥩", label: "Halal options", type: "dietary" as const },
 ];
 
-// Initial Candidate Dates
-const INITIAL_DATES: DateSlotOption[] = [
-  { id: "2026-11-25_PM", label: "Wed, Nov 25 • Evening", vetoedBy: null },
-  { id: "2026-11-26_PM", label: "Thu, Nov 26 • Evening", vetoedBy: null },
-  { id: "2026-11-27_PM", label: "Fri, Nov 27 • Evening", vetoedBy: null },
-  { id: "2026-11-28_PM", label: "Sat, Nov 28 • Evening", vetoedBy: null },
-  { id: "2026-11-29_PM", label: "Sun, Nov 29 • Evening", vetoedBy: null },
-];
+// Dynamic upcoming dates generator based on today's real date
+function generateDynamicDates(timeWindow: string): DateSlotOption[] {
+  const now = new Date();
+  const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  const windowLabel = TIME_WINDOWS.find((t) => t.id === timeWindow)?.label || "Dinner";
 
-const INITIAL_NAMES = ["Ankit", "Raj", "Priya", "Mike", "Sarah", "Dan", "Maya", "Tom"];
+  const slots: DateSlotOption[] = [];
+  // Generate 4 candidate dates starting next Thursday / Friday / Saturday / Sunday
+  const dayOfWeek = now.getDay();
+  const daysUntilNextThu = ((4 - dayOfWeek + 7) % 7) || 7;
+
+  for (let i = 0; i < 4; i++) {
+    const d = new Date(now);
+    d.setDate(now.getDate() + daysUntilNextThu + i);
+
+    const year = d.getFullYear();
+    const monthPadded = String(d.getMonth() + 1).padStart(2, "0");
+    const datePadded = String(d.getDate()).padStart(2, "0");
+    const dateIso = `${year}-${monthPadded}-${datePadded}`;
+
+    slots.push({
+      id: `${dateIso}_${timeWindow}`,
+      date: dateIso,
+      timeWindow: timeWindow as any,
+      label: `${daysOfWeek[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()} • ${windowLabel}`,
+      vetoedBy: null,
+    });
+  }
+  return slots;
+}
 
 const AVATAR_COLORS = [
   "from-emerald-500 to-teal-600",
@@ -121,56 +143,47 @@ const AVATAR_COLORS = [
 
 export default function CreateSessionPage() {
   const router = useRouter();
-  const [inputText, setInputText] = useState(PROMPT_PRESETS[0].text);
+  const [inputText, setInputText] = useState("");
   const [isParsing, setIsParsing] = useState(false);
   const [showHowItWorks, setShowHowItWorks] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
-  // Synchronous state so all sections are immediately visible & interactive
-  const [candidateDates, setCandidateDates] = useState<DateSlotOption[]>(INITIAL_DATES);
-  const [selectedDateIds, setSelectedDateIds] = useState<string[]>(["2026-11-25_PM", "2026-11-26_PM", "2026-11-27_PM", "2026-11-28_PM"]);
-  const [activeTimeWindow, setActiveTimeWindow] = useState<string>("dinner");
+  // Core state starts clean & dynamic
+  const [activeTimeWindow, setActiveTimeWindow] = useState<"dinner" | "lunch" | "brunch" | "drinks">("dinner");
+  const [candidateDates, setCandidateDates] = useState<DateSlotOption[]>(() => generateDynamicDates("dinner"));
+  const [selectedDateIds, setSelectedDateIds] = useState<string[]>(() => generateDynamicDates("dinner").slice(0, 3).map((s) => s.id));
   const [selectedArea, setSelectedArea] = useState<string>("Midtown Atlanta");
 
   const [activeConstraints, setActiveConstraints] = useState<ConstraintItem[]>([
-    { id: "c_ex_tue", type: "excluded_day", label: "Not Tuesday", confirmed: true },
-    { id: "c_veg", type: "dietary", label: "Likely vegetarian-friendly", confirmed: true },
-    { id: "c_kid", type: "kid_friendly", label: "Likely kid-friendly", confirmed: true },
+    { id: "c_veg", type: "dietary", label: "Vegetarian-friendly", confirmed: true },
+    { id: "c_kid", type: "kid_friendly", label: "Kid-friendly", confirmed: true },
     { id: "c_area", type: "area", label: "Midtown Atlanta", confirmed: true },
   ]);
 
-  const [participants, setParticipants] = useState<Record<string, any>>(() => {
-    const map: Record<string, any> = {};
-    INITIAL_NAMES.forEach((name, idx) => {
-      const id = `p_${name.toLowerCase()}`;
-      map[id] = {
-        name,
-        status: idx === 0 ? "done" : "pending",
-        isClaimed: idx === 0,
-        vetoUsed: false,
-        objectionUsed: false,
-        acknowledgedLock: false,
-        availableSlots: [],
-        topPickVenueId: null,
-        approvedVenueIds: [],
-      };
-    });
-    return map;
-  });
+  const [friendsList, setFriendsList] = useState<string[]>(["Ankit", "Raj", "Priya", "Mike", "Sarah", "Dan", "Maya", "Tom"]);
+  const [hostIndex, setHostIndex] = useState<number>(0);
+  const [newFriendInput, setNewFriendInput] = useState("");
 
-  const [headcount, setHeadcount] = useState<number>(8);
   const [isCreating, setIsCreating] = useState(false);
-  const [createdUrl, setCreatedUrl] = useState<string | null>(null);
-  const [copied, setCopied] = useState(false);
 
-  // Modals
+  // Fix Item 1: Separate public share URL from private host recovery link
+  const [publicShareUrl, setPublicShareUrl] = useState<string | null>(null);
+  const [adminRecoveryUrl, setAdminRecoveryUrl] = useState<string | null>(null);
+  const [copiedPublic, setCopiedPublic] = useState(false);
+  const [copiedAdmin, setCopiedAdmin] = useState(false);
+
+  // Custom modals
   const [showAddDateModal, setShowAddDateModal] = useState(false);
-  const [newDateLabel, setNewDateLabel] = useState("");
+  const [customDateValue, setCustomDateValue] = useState("");
+  const [customDateTimeWindow, setCustomDateTimeWindow] = useState("dinner");
+
   const [showAddFilterModal, setShowAddFilterModal] = useState(false);
   const [newFilterLabel, setNewFilterLabel] = useState("");
 
   const handleParse = async (textToParse: string) => {
     if (!textToParse.trim()) return;
     setIsParsing(true);
+    setErrorMessage(null);
     try {
       const res = await fetch("/api/sessions/parse", {
         method: "POST",
@@ -180,6 +193,9 @@ export default function CreateSessionPage() {
       const data = await res.json();
       if (data.parsed) {
         const p = data.parsed;
+        if (p.detectedTimeWindow) {
+          setActiveTimeWindow(p.detectedTimeWindow);
+        }
         if (p.dateSlots && p.dateSlots.length > 0) {
           setCandidateDates(p.dateSlots);
           setSelectedDateIds(p.dateSlots.map((s: any) => s.id));
@@ -189,9 +205,9 @@ export default function CreateSessionPage() {
           const areaC = p.constraints.find((c: any) => c.type === "area");
           if (areaC) setSelectedArea(areaC.label);
         }
-        if (p.participants && Object.keys(p.participants).length > 0) {
-          setParticipants(p.participants);
-          setHeadcount(Object.keys(p.participants).length);
+        if (p.participantNames && p.participantNames.length > 0) {
+          setFriendsList(p.participantNames);
+          setHostIndex(0);
         }
       }
     } catch (err) {
@@ -207,19 +223,28 @@ export default function CreateSessionPage() {
     );
   };
 
-  const handleTimeWindowChange = (twId: string) => {
+  const handleTimeWindowChange = (twId: "dinner" | "lunch" | "brunch" | "drinks") => {
     setActiveTimeWindow(twId);
-    const tw = TIME_WINDOWS.find((t) => t.id === twId);
-    if (!tw) return;
+    const windowLabel = TIME_WINDOWS.find((t) => t.id === twId)?.label || "Dinner";
 
     setCandidateDates((prev) =>
       prev.map((slot) => {
+        const dateIso = slot.date || slot.id.split("_")[0];
         const parts = slot.label.split(" • ");
-        const datePart = parts[0] || slot.label;
+        const dateTitle = parts[0] || slot.label;
         return {
           ...slot,
-          label: `${datePart} • ${tw.label}`,
+          id: `${dateIso}_${twId}`,
+          timeWindow: twId,
+          label: `${dateTitle} • ${windowLabel}`,
         };
+      })
+    );
+
+    setSelectedDateIds((prev) =>
+      prev.map((id) => {
+        const dateIso = id.split("_")[0];
+        return `${dateIso}_${twId}`;
       })
     );
   };
@@ -253,18 +278,30 @@ export default function CreateSessionPage() {
     });
   };
 
+  // Fix Item 6: Use HTML5 Date input to build clean ISO dates
   const handleAddCustomDate = () => {
-    if (!newDateLabel.trim()) return;
-    const cleanLabel = newDateLabel.trim();
-    const newId = `custom_slot_${Date.now()}`;
+    if (!customDateValue) return;
+    const parts = customDateValue.split("-");
+    if (parts.length !== 3) return;
+
+    const [year, month, day] = parts;
+    const d = new Date(parseInt(year, 10), parseInt(month, 10) - 1, parseInt(day, 10));
+    const daysOfWeek = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const windowLabel = TIME_WINDOWS.find((t) => t.id === customDateTimeWindow)?.label || "Dinner";
+
+    const slotId = `${customDateValue}_${customDateTimeWindow}`;
     const newSlot: DateSlotOption = {
-      id: newId,
-      label: cleanLabel,
+      id: slotId,
+      date: customDateValue,
+      timeWindow: customDateTimeWindow as any,
+      label: `${daysOfWeek[d.getDay()]}, ${months[d.getMonth()]} ${d.getDate()} • ${windowLabel}`,
       vetoedBy: null,
     };
+
     setCandidateDates((prev) => [...prev, newSlot]);
-    setSelectedDateIds((prev) => [...prev, newId]);
-    setNewDateLabel("");
+    setSelectedDateIds((prev) => [...prev, slotId]);
+    setCustomDateValue("");
     setShowAddDateModal(false);
   };
 
@@ -275,74 +312,97 @@ export default function CreateSessionPage() {
     setShowAddFilterModal(false);
   };
 
-  const handleRemoveParticipant = (pId: string) => {
-    setParticipants((prev) => {
-      const updated = { ...prev };
-      delete updated[pId];
-      setHeadcount(Math.max(Object.keys(updated).length, 1));
-      return updated;
-    });
+  const handleAddFriend = () => {
+    if (!newFriendInput.trim()) return;
+    const clean = newFriendInput.trim();
+    if (!friendsList.includes(clean)) {
+      setFriendsList((prev) => [...prev, clean]);
+    }
+    setNewFriendInput("");
+  };
+
+  const handleRemoveFriend = (idxToRemove: number) => {
+    setFriendsList((prev) => prev.filter((_, idx) => idx !== idxToRemove));
+    if (hostIndex >= friendsList.length - 1) {
+      setHostIndex(0);
+    }
   };
 
   const handleCreate = async () => {
     const activeDateSlots = candidateDates.filter((s) => selectedDateIds.includes(s.id));
     if (activeDateSlots.length === 0) {
-      alert("Please keep at least one candidate date selected.");
+      setErrorMessage("Please select at least one candidate date for the meetup.");
+      return;
+    }
+    if (friendsList.length === 0) {
+      setErrorMessage("Please list at least one friend or yourself.");
       return;
     }
 
     const confirmedConstraints = activeConstraints.filter((c) => c.confirmed);
+    const currentHostName = friendsList[hostIndex] || friendsList[0] || "You";
 
     setIsCreating(true);
+    setErrorMessage(null);
     try {
+      // Fix Item 2: Send clean names and hostName; server constructs participant state
       const res = await fetch("/api/sessions", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          topic: `Meetup in ${selectedArea}`,
-          expectedHeadcount: headcount,
-          participants,
+          topic: `${TIME_WINDOWS.find((t) => t.id === activeTimeWindow)?.label || "Meetup"} in ${selectedArea}`,
+          hostName: currentHostName,
+          participantNames: friendsList,
           constraints: confirmedConstraints,
           dateSlots: activeDateSlots,
           timeZone: "America/New_York",
         }),
       });
       const data = await res.json();
-      if (data.shareUrl) {
-        const fullShareUrl = window.location.origin + data.shareUrl;
-        setCreatedUrl(fullShareUrl);
+      if (res.ok && data.publicShareUrl && data.adminRecoveryUrl) {
+        setPublicShareUrl(window.location.origin + data.publicShareUrl);
+        setAdminRecoveryUrl(window.location.origin + data.adminRecoveryUrl);
+      } else {
+        throw new Error(data.error || "Failed to create meetup room");
       }
-    } catch (err) {
+    } catch (err: any) {
       console.error("Create session error:", err);
-      alert("Failed to create meetup session. Please try again.");
+      setErrorMessage(err.message || "Failed to create meetup session. Please try again.");
     } finally {
       setIsCreating(false);
     }
   };
 
-  const copyToClipboard = (text: string) => {
+  const copyText = (text: string, isHostKey = false) => {
     navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2500);
+    if (isHostKey) {
+      setCopiedAdmin(true);
+      setTimeout(() => setCopiedAdmin(false), 2500);
+    } else {
+      setCopiedPublic(true);
+      setTimeout(() => setCopiedPublic(false), 2500);
+    }
   };
 
-  const shareToChat = async () => {
-    if (!createdUrl) return;
-    const shareText = `Hey! Locking in dinner with the crew in ${selectedArea}. Tap your name to mark availability (10 sec, no signup):\n${createdUrl}`;
+  // Fix Item 1: WhatsApp share gets ONLY the clean public link (zero host key)
+  const sharePublicToChat = async () => {
+    if (!publicShareUrl) return;
+    const windowName = TIME_WINDOWS.find((t) => t.id === activeTimeWindow)?.label.toLowerCase() || "meetup";
+    const shareText = `Hey! Locking in ${windowName} with the crew in ${selectedArea}. Tap your name to mark availability (10 sec, no signup):\n${publicShareUrl}`;
 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: "SyncUp Meetup",
+          title: `SyncUp: ${windowName} in ${selectedArea}`,
           text: shareText,
-          url: createdUrl,
+          url: publicShareUrl,
         });
         return;
       } catch (e) {
-        // Fallback
+        // Fallback to copy
       }
     }
-    copyToClipboard(shareText);
+    copyText(shareText);
   };
 
   return (
@@ -362,59 +422,102 @@ export default function CreateSessionPage() {
           </div>
         </div>
 
+        {/* Sharper High-Conversion Badge */}
         <div className="flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-50 border border-emerald-200/80 shadow-xs text-[11px] font-black text-emerald-900 tracking-tight">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>NO APP • NO SIGNUP</span>
         </div>
       </header>
 
-      {/* SUCCESS / CREATED ROOM CARD */}
-      {createdUrl ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center animate-fade-in py-8 px-2">
-          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white mb-4 shadow-xl shadow-emerald-500/30 ring-8 ring-emerald-50">
+      {/* Error Message Toast */}
+      {errorMessage && (
+        <div className="mb-3 bg-red-50 border border-red-200 text-red-800 text-xs p-3 rounded-2xl flex items-center justify-between gap-2 animate-fade-in shadow-xs">
+          <div className="flex items-center gap-2">
+            <ShieldAlert className="w-4 h-4 text-red-600 shrink-0" />
+            <span className="font-semibold">{errorMessage}</span>
+          </div>
+          <button onClick={() => setErrorMessage(null)} className="text-red-500 hover:text-red-700 font-bold">
+            ×
+          </button>
+        </div>
+      )}
+
+      {/* ============================================================== */}
+      {/* SUCCESS SCREEN: SEPARATE PUBLIC SHARE vs PRIVATE HOST RECOVERY */}
+      {/* ============================================================== */}
+      {publicShareUrl && adminRecoveryUrl ? (
+        <div className="flex-1 flex flex-col items-center justify-center text-center animate-fade-in py-6 px-1 space-y-4">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white shadow-xl shadow-emerald-500/30 ring-8 ring-emerald-50">
             <CheckCircle2 className="w-10 h-10" />
           </div>
-          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Meetup Room Live!</h2>
-          <p className="text-xs text-slate-600 mt-1.5 max-w-xs leading-relaxed">
-            Drop this single link into your WhatsApp or iMessage thread. Friends tap their name to vote in 10 seconds.
-          </p>
-
-          <div className="w-full mt-6 bg-white border border-slate-200/80 rounded-2xl p-4 text-left shadow-sm">
-            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
-              Shareable Group Link
-            </label>
-            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono text-slate-800 break-all select-all">
-              <span className="truncate flex-1">{createdUrl}</span>
-              <button
-                onClick={() => copyToClipboard(createdUrl)}
-                className="p-1.5 bg-white hover:bg-slate-100 rounded-lg text-slate-600 shadow-xs border border-slate-200 active:scale-95 transition"
-                title="Copy link"
-              >
-                {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
-              </button>
-            </div>
-            <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
-              <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              Your host admin key is saved in this link.
+          <div>
+            <h2 className="text-2xl font-black text-slate-900 tracking-tight">Meetup Room Live!</h2>
+            <p className="text-xs text-slate-600 mt-1 max-w-xs leading-relaxed">
+              Drop the link into your WhatsApp or iMessage thread. Friends tap their name to vote in 10 seconds.
             </p>
           </div>
 
-          <div className="w-full mt-6 space-y-2.5">
-            <button
-              onClick={shareToChat}
-              className="w-full flex items-center justify-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-4 rounded-2xl shadow-xl shadow-emerald-600/30 active:scale-[0.98] transition text-sm"
-            >
-              <Share2 className="w-4 h-4" />
-              <span>Share to Group Chat</span>
-            </button>
+          {/* 1. PUBLIC GROUP LINK (CLEAN - ZERO HOST KEY) */}
+          <div className="w-full bg-white border border-slate-200/90 rounded-2xl p-4 text-left shadow-sm space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                <Share2 className="w-3.5 h-3.5 text-emerald-600" />
+                <span>1. Public Link to Share in Chat</span>
+              </label>
+              <span className="text-[10px] text-emerald-700 font-bold bg-emerald-50 px-2 py-0.5 rounded-full">Safe for friends</span>
+            </div>
+
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono text-slate-800 break-all select-all">
+              <span className="truncate flex-1">{publicShareUrl}</span>
+              <button
+                onClick={() => copyText(publicShareUrl, false)}
+                className="p-1.5 bg-white hover:bg-slate-100 rounded-lg text-slate-600 shadow-xs border border-slate-200 active:scale-95 transition"
+                title="Copy public link"
+              >
+                {copiedPublic ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
 
             <button
-              onClick={() => router.push(createdUrl.replace(window.location.origin, ""))}
-              className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-800 font-bold py-3.5 px-4 rounded-2xl border border-slate-200 shadow-xs active:scale-[0.98] transition text-xs"
+              onClick={sharePublicToChat}
+              className="w-full flex items-center justify-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-3.5 px-4 rounded-xl shadow-md shadow-emerald-600/25 active:scale-[0.98] transition text-xs"
             >
-              <span>Open Meetup Room</span>
-              <ArrowRight className="w-4 h-4" />
+              <Share2 className="w-4 h-4" />
+              <span>Share Clean Link to Group Chat</span>
             </button>
+          </div>
+
+          {/* 2. PRIVATE HOST RECOVERY PASS (KEPT SEPARATE WITH WARNING) */}
+          <div className="w-full bg-amber-50/70 border border-amber-200 rounded-2xl p-4 text-left shadow-xs space-y-2">
+            <div className="flex items-center justify-between">
+              <label className="text-[11px] font-black text-amber-950 uppercase tracking-wider flex items-center gap-1.5">
+                <KeyRound className="w-3.5 h-3.5 text-amber-600" />
+                <span>2. Your Private Host Pass</span>
+              </label>
+              <span className="text-[10px] text-amber-800 font-bold bg-amber-100 px-2 py-0.5 rounded-full">Keep for yourself</span>
+            </div>
+
+            <p className="text-[11px] text-amber-900 leading-snug">
+              This link grants organizer powers (locking in exact time & setting booker). Bookmark it or open room now:
+            </p>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => copyText(adminRecoveryUrl, true)}
+                className="flex-1 py-2.5 bg-white hover:bg-amber-100 text-amber-900 font-bold rounded-xl border border-amber-300 text-xs transition flex items-center justify-center gap-1.5"
+              >
+                {copiedAdmin ? <Check className="w-3.5 h-3.5 text-emerald-600" /> : <Copy className="w-3.5 h-3.5" />}
+                <span>Copy Host Recovery Link</span>
+              </button>
+
+              <button
+                onClick={() => router.push(adminRecoveryUrl.replace(window.location.origin, ""))}
+                className="flex-1 py-2.5 bg-slate-900 hover:bg-slate-800 text-white font-bold rounded-xl text-xs transition flex items-center justify-center gap-1.5 shadow-sm"
+              >
+                <span>Open as Host</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
           </div>
         </div>
       ) : (
@@ -456,7 +559,7 @@ export default function CreateSessionPage() {
             </div>
           </section>
 
-          {/* INTERACTIVE 30-SECOND WALKTHROUGH ACCORDION */}
+          {/* 30-SECOND WALKTHROUGH ACCORDION */}
           <section className="bg-emerald-50/70 border border-emerald-200/70 rounded-2xl overflow-hidden shadow-2xs">
             <button
               type="button"
@@ -483,7 +586,7 @@ export default function CreateSessionPage() {
                   <span className="w-5 h-5 rounded-full bg-emerald-200 text-emerald-900 font-bold flex items-center justify-center text-[11px] shrink-0 mt-0.5">1</span>
                   <div>
                     <strong className="block font-bold">You Pick the Options Below</strong>
-                    <span className="text-emerald-800 text-[11px]">Type or tap your dates, time window (Dinner/Lunch), and neighborhood.</span>
+                    <span className="text-emerald-800 text-[11px]">Choose dates, time block (Dinner/Brunch), and Atlanta neighborhood.</span>
                   </div>
                 </div>
                 <div className="flex items-start gap-2.5">
@@ -504,9 +607,7 @@ export default function CreateSessionPage() {
             )}
           </section>
 
-          {/* ============================================================== */}
-          {/* STEP 1 WALKTHROUGH CARD: THE PROMPT & 1-TAP TEMPLATES */}
-          {/* ============================================================== */}
+          {/* STEP 1: PROMPT & 1-TAP ATLANTA TEMPLATES */}
           <section className="bg-white border border-slate-200/90 rounded-[28px] p-4.5 shadow-sm space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2">
@@ -563,7 +664,7 @@ export default function CreateSessionPage() {
                 onChange={(e) => setInputText(e.target.value)}
                 rows={3}
                 className="w-full p-3.5 text-xs sm:text-sm rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition bg-slate-50/50 resize-none text-slate-900 shadow-inner leading-relaxed font-medium"
-                placeholder="Type your messy sentence: e.g. Dinner next week for 8 of us—Ankit, Raj, Priya, Mike. Not Tuesday. Midtown Atlanta, veg & kid-friendly"
+                placeholder="Type your plan: e.g. Dinner next week in Midtown Atlanta with Sarah, Dave, Sam & Priya. Veg & kid-friendly"
               />
               {isParsing && (
                 <div className="absolute right-3.5 bottom-3.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200/60 shadow-xs">
@@ -588,9 +689,7 @@ export default function CreateSessionPage() {
             </div>
           </section>
 
-          {/* ============================================================== */}
-          {/* STEP 2 WALKTHROUGH CARD: CANDIDATE DATES & TIME FILTERS */}
-          {/* ============================================================== */}
+          {/* STEP 2: DATES & TIME BLOCK */}
           <section className="bg-white border border-slate-200/90 rounded-[28px] p-4.5 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2">
@@ -612,7 +711,7 @@ export default function CreateSessionPage() {
                 className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-xl border border-emerald-200/60 active:scale-95 transition"
               >
                 <Plus className="w-3 h-3" />
-                <span>+ Custom Date</span>
+                <span>Custom Date</span>
               </button>
             </div>
 
@@ -628,7 +727,7 @@ export default function CreateSessionPage() {
                     <button
                       key={tw.id}
                       type="button"
-                      onClick={() => handleTimeWindowChange(tw.id)}
+                      onClick={() => handleTimeWindowChange(tw.id as any)}
                       className={`p-2.5 rounded-2xl border text-left transition flex flex-col justify-between active:scale-95 ${
                         isSelected
                           ? "bg-slate-900 border-slate-900 text-white shadow-md shadow-slate-900/10 font-bold"
@@ -704,9 +803,7 @@ export default function CreateSessionPage() {
             </div>
           </section>
 
-          {/* ============================================================== */}
-          {/* STEP 3 WALKTHROUGH CARD: ATLANTA NEIGHBORHOOD & PREFERENCES */}
-          {/* ============================================================== */}
+          {/* STEP 3: ATLANTA AREA & DIETARY FILTERS */}
           <section className="bg-white border border-slate-200/90 rounded-[28px] p-4.5 shadow-sm space-y-4">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2">
@@ -728,7 +825,7 @@ export default function CreateSessionPage() {
                 className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 px-2.5 py-1 rounded-xl border border-emerald-200/60 active:scale-95 transition"
               >
                 <Plus className="w-3 h-3" />
-                <span>+ Custom</span>
+                <span>Custom</span>
               </button>
             </div>
 
@@ -758,7 +855,7 @@ export default function CreateSessionPage() {
               </div>
             </div>
 
-            {/* Dietary & Vibe Filter Badges */}
+            {/* Dietary & Vibe Filter Badges (Clean consumer names) */}
             <div className="space-y-1.5 pt-1">
               <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
                 Dietary & Atmosphere Requirements (Tap to Toggle):
@@ -794,9 +891,7 @@ export default function CreateSessionPage() {
             </div>
           </section>
 
-          {/* ============================================================== */}
-          {/* STEP 4 WALKTHROUGH CARD: FRIENDS INCLUDED */}
-          {/* ============================================================== */}
+          {/* STEP 4: FRIENDS & HOST SELECTION */}
           <section className="bg-white border border-slate-200/90 rounded-[28px] p-4.5 shadow-sm space-y-3">
             <div className="flex items-center justify-between border-b border-slate-100 pb-2.5">
               <div className="flex items-center gap-2">
@@ -805,41 +900,46 @@ export default function CreateSessionPage() {
                 </div>
                 <div>
                   <h3 className="text-xs font-black text-slate-900 uppercase tracking-wider">
-                    Step 4: Confirm Friends ({Object.keys(participants).length} chips)
+                    Step 4: Friends & Host ({friendsList.length} people)
                   </h3>
                   <p className="text-[10px] text-slate-500 font-medium">
-                    Friends simply tap their name chip to vote (zero passwords)
+                    Tap a name to make them the Host. Friends tap their name to vote.
                   </p>
                 </div>
               </div>
             </div>
 
             <div className="flex flex-wrap gap-2">
-              {Object.entries(participants).map(([id, p], idx) => {
+              {friendsList.map((name, idx) => {
+                const isHost = idx === hostIndex;
                 const gradient = AVATAR_COLORS[idx % AVATAR_COLORS.length];
                 return (
                   <div
-                    key={id}
-                    className={`text-xs pl-2 pr-2.5 py-1.5 rounded-xl border flex items-center gap-1.5 transition ${
-                      idx === 0
-                        ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold shadow-xs"
-                        : "bg-slate-50 border-slate-200/80 text-slate-800"
+                    key={name + idx}
+                    onClick={() => setHostIndex(idx)}
+                    className={`text-xs pl-2 pr-2.5 py-1.5 rounded-xl border flex items-center gap-1.5 transition cursor-pointer active:scale-95 ${
+                      isHost
+                        ? "bg-emerald-50 border-emerald-400 text-emerald-950 font-black shadow-xs ring-1 ring-emerald-500/20"
+                        : "bg-slate-50 hover:bg-slate-100 border-slate-200/80 text-slate-800"
                     }`}
                   >
                     <div
                       className={`w-5 h-5 rounded-lg bg-gradient-to-tr ${gradient} text-white font-black text-[10px] flex items-center justify-center shrink-0`}
                     >
-                      {p.name.charAt(0).toUpperCase()}
+                      {name.charAt(0).toUpperCase()}
                     </div>
                     <span className="truncate max-w-[100px] font-bold">
-                      {p.name} {idx === 0 && "(Host)"}
+                      {name} {isHost && "(Host)"}
                     </span>
-                    {idx !== 0 && (
+                    {friendsList.length > 2 && (
                       <button
                         type="button"
-                        onClick={() => handleRemoveParticipant(id)}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleRemoveFriend(idx);
+                        }}
                         className="text-slate-400 hover:text-red-500 font-black ml-0.5 text-sm"
-                        title="Remove"
+                        title="Remove friend"
                       >
                         ×
                       </button>
@@ -847,17 +947,34 @@ export default function CreateSessionPage() {
                   </div>
                 );
               })}
-              <span className="text-[11px] text-slate-400 self-center italic px-1">
-                + anyone can join via link
-              </span>
+            </div>
+
+            {/* Quick add friend input */}
+            <div className="flex items-center gap-2 pt-1">
+              <input
+                type="text"
+                value={newFriendInput}
+                onChange={(e) => setNewFriendInput(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && handleAddFriend()}
+                placeholder="Add another friend (e.g. Maya)"
+                className="flex-1 p-2.5 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-medium"
+              />
+              <button
+                type="button"
+                onClick={handleAddFriend}
+                disabled={!newFriendInput.trim()}
+                className="px-3.5 py-2.5 bg-slate-900 hover:bg-slate-800 disabled:opacity-40 text-white rounded-xl text-xs font-bold transition shrink-0"
+              >
+                + Add
+              </button>
             </div>
           </section>
 
-          {/* LARGE TACTILE ACTION BUTTON */}
+          {/* CREATE BUTTON */}
           <section className="pt-1">
             <button
               onClick={handleCreate}
-              disabled={isCreating || selectedDateIds.length === 0}
+              disabled={isCreating || selectedDateIds.length === 0 || friendsList.length === 0}
               className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 text-white font-black py-4 px-5 rounded-2xl shadow-xl shadow-emerald-600/30 active:scale-[0.98] transition text-base tracking-tight"
             >
               {isCreating ? (
@@ -867,7 +984,7 @@ export default function CreateSessionPage() {
                 </>
               ) : (
                 <>
-                  <span>Create Meetup & Get WhatsApp Link</span>
+                  <span>Create Meetup & Get Clean Link</span>
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
@@ -879,12 +996,12 @@ export default function CreateSessionPage() {
         </div>
       )}
 
-      {/* Add Date Modal */}
+      {/* Add Date Modal (Fix Item 6: HTML5 date picker) */}
       {showAddDateModal && (
         <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-fade-in">
           <div className="w-full max-w-sm bg-white rounded-3xl p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-black text-slate-900">Add Candidate Date</h3>
+              <h3 className="text-base font-black text-slate-900">Add Custom Date</h3>
               <button
                 onClick={() => setShowAddDateModal(false)}
                 className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
@@ -894,17 +1011,38 @@ export default function CreateSessionPage() {
             </div>
 
             <p className="text-xs text-slate-600">
-              Type the date and time window:
+              Pick the specific calendar date and time window:
             </p>
 
-            <input
-              type="text"
-              value={newDateLabel}
-              onChange={(e) => setNewDateLabel(e.target.value)}
-              placeholder="e.g. Sun, Nov 29 • Evening"
-              autoFocus
-              className="w-full p-3.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
-            />
+            <div className="space-y-3">
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Calendar Date:
+                </label>
+                <input
+                  type="date"
+                  value={customDateValue}
+                  onChange={(e) => setCustomDateValue(e.target.value)}
+                  className="w-full p-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold bg-white"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1">
+                  Time Window:
+                </label>
+                <select
+                  value={customDateTimeWindow}
+                  onChange={(e) => setCustomDateTimeWindow(e.target.value)}
+                  className="w-full p-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold bg-white"
+                >
+                  <option value="dinner">Dinner (6:30 – 8:30 PM)</option>
+                  <option value="drinks">Happy Hour (5:00 – 7:00 PM)</option>
+                  <option value="lunch">Lunch (12:00 – 2:00 PM)</option>
+                  <option value="brunch">Brunch (10:30 AM – 1:00 PM)</option>
+                </select>
+              </div>
+            </div>
 
             <div className="flex items-center gap-2 pt-1">
               <button
@@ -915,7 +1053,7 @@ export default function CreateSessionPage() {
               </button>
               <button
                 onClick={handleAddCustomDate}
-                disabled={!newDateLabel.trim()}
+                disabled={!customDateValue}
                 className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition"
               >
                 Add Date
@@ -947,7 +1085,7 @@ export default function CreateSessionPage() {
               type="text"
               value={newFilterLabel}
               onChange={(e) => setNewFilterLabel(e.target.value)}
-              placeholder="e.g. Rooftop or Halal friendly"
+              placeholder="e.g. Rooftop or Halal options"
               autoFocus
               className="w-full p-3.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-bold"
             />

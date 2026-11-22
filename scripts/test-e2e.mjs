@@ -46,11 +46,12 @@ async function runE2ETests() {
   });
   assert.strictEqual(createRes.status, 200, "Create API should return 200");
   const createData = await createRes.json();
-  const { sessionId, slug, adminSecret, shareUrl } = createData;
+  const { sessionId, slug, adminSecret, publicShareUrl, adminRecoveryUrl } = createData;
   const adminToken = adminSecret;
   assert.ok(sessionId && slug && adminSecret, "Should return sessionId, slug, adminSecret");
-  assert.ok(shareUrl.includes(`#admin=${adminSecret}`), "Share URL must contain fragment #admin={secret}");
-  console.log(`✅ Session created: ${slug} with fragment admin recovery link!`);
+  assert.ok(adminRecoveryUrl.includes(`#admin=${adminSecret}`), "Admin Recovery URL must contain fragment #admin={secret}");
+  assert.ok(!publicShareUrl.includes("#admin="), "Public Share URL must NEVER contain host admin secret");
+  console.log(`✅ Session created: ${slug} with separated public link and private admin recovery link!`);
 
   // 3. Test Admin Claim
   console.log("\n[3/12] Testing Admin Token Claim & Verification...");
@@ -86,7 +87,7 @@ async function runE2ETests() {
 
   // 5. Test Voting & Automatic Quorum Hit
   console.log("\n[5/12] Testing Votes & Quorum-Gated Venue Generation...");
-  const pKeys = Object.keys(parsed.participants);
+  const pKeys = Object.keys(createData.session.participants);
   const targetSlot = parsed.dateSlots[0].id; // First slot e.g. Thu Nov 26 PM
 
   // Cast votes for 5 people to hit quorum (60% of 9 = 6)
