@@ -172,8 +172,36 @@ function parseWithRules(text: string, lower: string, refDate: Date): ParsedSessi
     });
   }
 
-  // Atlanta Neighborhoods
+  // Metro Atlanta Cities & Intown Neighborhoods
   const neighborhoods = [
+    // Metro Atlanta (OTP)
+    "Marietta Square",
+    "Marietta",
+    "East Cobb",
+    "Roswell",
+    "Canton Street",
+    "Kennesaw",
+    "Smyrna",
+    "The Battery",
+    "Battery Atlanta",
+    "Vinings",
+    "Alpharetta",
+    "Avalon",
+    "Sandy Springs",
+    "Dunwoody",
+    "Duluth",
+    "Johns Creek",
+    "Suwanee",
+    "Woodstock",
+    "Acworth",
+    "Cumming",
+    "Norcross",
+    "Peachtree City",
+    "Lawrenceville",
+    "Brookhaven",
+    "Chamblee",
+    "Tucker",
+    // Intown Atlanta (ITP)
     "West Midtown",
     "Midtown Atlanta",
     "Inman Park",

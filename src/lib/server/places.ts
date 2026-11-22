@@ -72,6 +72,171 @@ const GROUNDED_ATLANTA_VENUES: GroundedVenueTemplate[] = [
     tags: ["Tapas & Small Plates", "BeltLine Vibe", "Great Cocktails", "Patio"],
     neighborhoods: ["Inman Park", "BeltLine"],
   },
+  // Metro Atlanta (OTP) - Roswell
+  {
+    name: "Table & Main",
+    placeId: "ChIJ_roswell_table_main",
+    rating: 4.7,
+    priceLevel: "$$$",
+    address: "1028 Canton St, Roswell, GA 30075",
+    mapsUrl: "https://maps.google.com/?q=Table+and+Main+Roswell+GA",
+    tags: ["Southern Hospitality", "Canton Street Patio", "Great Cocktails", "Roswell"],
+    neighborhoods: ["Roswell", "Canton Street"],
+  },
+  {
+    name: "Osteria Mattone",
+    placeId: "ChIJ_roswell_osteria_mattone",
+    rating: 4.7,
+    priceLevel: "$$$",
+    address: "1095 Canton St, Roswell, GA 30075",
+    mapsUrl: "https://maps.google.com/?q=Osteria+Mattone+Roswell+GA",
+    tags: ["Likely vegetarian-friendly", "Roman Italian", "Patio", "Roswell"],
+    neighborhoods: ["Roswell", "Canton Street"],
+  },
+  {
+    name: "Vas Kouzina",
+    placeId: "ChIJ_roswell_vas_kouzina",
+    rating: 4.6,
+    priceLevel: "$$",
+    address: "1055 Canton St, Roswell, GA 30075",
+    mapsUrl: "https://maps.google.com/?q=Vas+Kouzina+Roswell+GA",
+    tags: ["Likely vegetarian-friendly", "Mediterranean", "Likely kid-friendly", "Roswell"],
+    neighborhoods: ["Roswell", "Canton Street"],
+  },
+  // Metro Atlanta (OTP) - Marietta
+  {
+    name: "Two Birds Taphouse",
+    placeId: "ChIJ_marietta_two_birds",
+    rating: 4.6,
+    priceLevel: "$$",
+    address: "52 Powder Springs St, Marietta, GA 30064",
+    mapsUrl: "https://maps.google.com/?q=Two+Birds+Taphouse+Marietta+GA",
+    tags: ["Marietta Square", "Craft Beer & Cocktails", "Likely kid-friendly", "Lively"],
+    neighborhoods: ["Marietta", "Marietta Square"],
+  },
+  {
+    name: "Taqueria Tsunami Marietta Square",
+    placeId: "ChIJ_marietta_taqueria_tsunami",
+    rating: 4.5,
+    priceLevel: "$$",
+    address: "70 S Park Square NE, Marietta, GA 30060",
+    mapsUrl: "https://maps.google.com/?q=Taqueria+Tsunami+Marietta+Square+GA",
+    tags: ["Likely vegetarian-friendly", "Likely kid-friendly", "Patio", "Marietta Square"],
+    neighborhoods: ["Marietta", "Marietta Square"],
+  },
+  {
+    name: "Seed Kitchen & Bar",
+    placeId: "ChIJ_marietta_seed",
+    rating: 4.6,
+    priceLevel: "$$$",
+    address: "1311 Johnson Ferry Rd, Marietta, GA 30068",
+    mapsUrl: "https://maps.google.com/?q=Seed+Kitchen+and+Bar+Marietta+GA",
+    tags: ["New American", "East Cobb", "Cocktails", "Likely vegetarian-friendly"],
+    neighborhoods: ["Marietta", "East Cobb"],
+  },
+  // Metro Atlanta (OTP) - Smyrna / The Battery
+  {
+    name: "Muss & Turner's",
+    placeId: "ChIJ_smyrna_muss_turners",
+    rating: 4.6,
+    priceLevel: "$$",
+    address: "1675 Cumberland Pkwy SE, Smyrna, GA 30080",
+    mapsUrl: "https://maps.google.com/?q=Muss+and+Turners+Smyrna+GA",
+    tags: ["Neighborhood Favorite", "Likely kid-friendly", "Great Drinks", "Smyrna"],
+    neighborhoods: ["Smyrna", "Vinings", "The Battery", "Battery Atlanta"],
+  },
+  {
+    name: "Superica at The Battery",
+    placeId: "ChIJ_battery_superica",
+    rating: 4.5,
+    priceLevel: "$$",
+    address: "455 Legends Pl SE, Atlanta, GA 30339",
+    mapsUrl: "https://maps.google.com/?q=Superica+The+Battery+Atlanta",
+    tags: ["Likely kid-friendly", "Patio", "Tex-Mex", "The Battery"],
+    neighborhoods: ["Smyrna", "The Battery", "Battery Atlanta", "Vinings"],
+  },
+  {
+    name: "Antico Pizza at The Battery",
+    placeId: "ChIJ_battery_antico",
+    rating: 4.6,
+    priceLevel: "$$",
+    address: "2605 Circle 75 Pkwy, Atlanta, GA 30339",
+    mapsUrl: "https://maps.google.com/?q=Antico+Pizza+The+Battery+Atlanta",
+    tags: ["Likely vegetarian-friendly", "Likely kid-friendly", "Casual", "The Battery"],
+    neighborhoods: ["Smyrna", "The Battery", "Battery Atlanta"],
+  },
+  // Metro Atlanta (OTP) - Kennesaw
+  {
+    name: "Trackside Grill",
+    placeId: "ChIJ_kennesaw_trackside",
+    rating: 4.6,
+    priceLevel: "$$",
+    address: "2840 S Main St, Kennesaw, GA 30144",
+    mapsUrl: "https://maps.google.com/?q=Trackside+Grill+Kennesaw+GA",
+    tags: ["Downtown Kennesaw", "Southern Comfort", "Likely kid-friendly", "Cozy"],
+    neighborhoods: ["Kennesaw", "Acworth"],
+  },
+  {
+    name: "Lazy Dog Restaurant & Bar",
+    placeId: "ChIJ_kennesaw_lazy_dog",
+    rating: 4.5,
+    priceLevel: "$$",
+    address: "1105 Ernest W Barrett Pkwy NW, Kennesaw, GA 30144",
+    mapsUrl: "https://maps.google.com/?q=Lazy+Dog+Restaurant+Kennesaw+GA",
+    tags: ["Likely kid-friendly", "Likely vegetarian-friendly", "Outdoor Patio", "Kennesaw"],
+    neighborhoods: ["Kennesaw", "Marietta"],
+  },
+  {
+    name: "Capers Restaurant & Bar",
+    placeId: "ChIJ_kennesaw_capers",
+    rating: 4.5,
+    priceLevel: "$$",
+    address: "1635 Old 41 Hwy NW, Kennesaw, GA 30152",
+    mapsUrl: "https://maps.google.com/?q=Capers+Restaurant+Kennesaw+GA",
+    tags: ["Mediterranean & American", "Quiet Conversation", "Kennesaw", "Cocktails"],
+    neighborhoods: ["Kennesaw"],
+  },
+  // Metro Atlanta (OTP) - Alpharetta / Avalon / Sandy Springs / Dunwoody
+  {
+    name: "Rumi's Kitchen Avalon",
+    placeId: "ChIJ_alpharetta_rumis",
+    rating: 4.8,
+    priceLevel: "$$$",
+    address: "7105 Avalon Blvd, Alpharetta, GA 30009",
+    mapsUrl: "https://maps.google.com/?q=Rumis+Kitchen+Avalon+Alpharetta+GA",
+    tags: ["Likely vegetarian-friendly", "Modern Persian", "Avalon", "Upscale"],
+    neighborhoods: ["Alpharetta", "Avalon", "Johns Creek", "Roswell"],
+  },
+  {
+    name: "Colletta Italian Food & Wine",
+    placeId: "ChIJ_alpharetta_colletta",
+    rating: 4.6,
+    priceLevel: "$$$",
+    address: "900 3rd St, Alpharetta, GA 30009",
+    mapsUrl: "https://maps.google.com/?q=Colletta+Avalon+Alpharetta+GA",
+    tags: ["Likely vegetarian-friendly", "Handmade Pasta", "Patio", "Avalon"],
+    neighborhoods: ["Alpharetta", "Avalon", "Johns Creek"],
+  },
+  {
+    name: "Casi Cielo",
+    placeId: "ChIJ_sandysprings_casi_cielo",
+    rating: 4.7,
+    priceLevel: "$$$",
+    address: "6125 Roswell Rd, Sandy Springs, GA 30328",
+    mapsUrl: "https://maps.google.com/?q=Casi+Cielo+Sandy+Springs+GA",
+    tags: ["Oaxacan Cuisine", "Great Cocktails", "Patio", "Sandy Springs"],
+    neighborhoods: ["Sandy Springs", "Dunwoody", "Brookhaven"],
+  },
+  {
+    name: "Novo Cucina",
+    placeId: "ChIJ_dunwoody_novo_cucina",
+    rating: 4.6,
+    priceLevel: "$$",
+    address: "5592 Chamblee Dunwoody Rd, Dunwoody, GA 30338",
+    mapsUrl: "https://maps.google.com/?q=Novo+Cucina+Dunwoody+GA",
+    tags: ["Likely vegetarian-friendly", "Likely kid-friendly", "Artisan Pizza", "Dunwoody"],
+    neighborhoods: ["Dunwoody", "Sandy Springs", "Brookhaven"],
+  },
 ];
 
 export async function findGroundedVenues(
@@ -102,7 +267,9 @@ export async function findGroundedVenues(
   });
 
   if (candidates.length < 3) {
-    candidates = GROUNDED_ATLANTA_VENUES;
+    const existingIds = new Set(candidates.map((c) => c.placeId));
+    const extras = GROUNDED_ATLANTA_VENUES.filter((v) => !existingIds.has(v.placeId));
+    candidates = [...candidates, ...extras];
   }
 
   return candidates.slice(0, 5).map((v, idx) => {

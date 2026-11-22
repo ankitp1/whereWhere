@@ -50,9 +50,9 @@ const PROMPT_PRESETS = [
   },
   {
     emoji: "🍕",
-    label: "West Midtown Dinner",
-    text: "Dinner this Thursday in West Midtown near Howell Mill with Dave, Elena, Sam & Priya. Cocktails & gluten-free options",
-    area: "West Midtown",
+    label: "Roswell Dinner",
+    text: "Dinner this Thursday in Roswell near Canton Street with Dave, Elena, Sam & Priya. Patio & kid-friendly",
+    area: "Roswell",
     timeWindow: "dinner" as const,
   },
 ];
@@ -65,8 +65,24 @@ const TIME_WINDOWS = [
   { id: "brunch", label: "Brunch", time: "10:30 AM – 1:00 PM", emoji: "🥞" },
 ];
 
-// Atlanta Neighborhoods
-const ATLANTA_NEIGHBORHOODS = [
+// Metro Atlanta Cities (OTP)
+const METRO_ATLANTA_CITIES = [
+  "Roswell",
+  "Marietta",
+  "Kennesaw",
+  "Smyrna / The Battery",
+  "Alpharetta / Avalon",
+  "Sandy Springs",
+  "Dunwoody",
+  "Duluth",
+  "Johns Creek",
+  "Woodstock",
+  "Suwanee",
+  "Vinings",
+];
+
+// Intown Atlanta Neighborhoods (ITP)
+const INTOWN_ATLANTA_NEIGHBORHOODS = [
   "Midtown Atlanta",
   "BeltLine / Inman Park",
   "West Midtown",
@@ -74,6 +90,7 @@ const ATLANTA_NEIGHBORHOODS = [
   "Ponce City / O4W",
   "Decatur",
   "Virginia-Highland",
+  "Brookhaven",
 ];
 
 // Dietary & Atmosphere Filter Badges
@@ -161,8 +178,21 @@ export default function CreateSessionPage() {
   const [copiedPublic, setCopiedPublic] = useState(false);
   const [copiedAdmin, setCopiedAdmin] = useState(false);
 
-  // Custom date picker inside modal
+  // Custom inputs inside modal
   const [customDateValue, setCustomDateValue] = useState("");
+  const [customAreaInput, setCustomAreaInput] = useState("");
+
+  const selectArea = (area: string) => {
+    const clean = area.trim();
+    if (!clean) return;
+    setSelectedArea(clean);
+    setActiveConstraints((prev) => {
+      const filtered = prev.filter((c) => c.type !== "area");
+      return [...filtered, { id: `c_area_${Date.now()}`, type: "area", label: clean, confirmed: true }];
+    });
+    setCustomAreaInput("");
+    setActiveEditor(null);
+  };
 
   // O1: Parse input sentence and move to O2
   const handleContinueFromInput = async () => {
@@ -849,28 +879,69 @@ export default function CreateSessionPage() {
 
             {/* Area Editor */}
             {activeEditor === "area" && (
-              <div className="space-y-1.5">
-                {ATLANTA_NEIGHBORHOODS.map((area) => (
+              <div className="space-y-4">
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+                    Metro Atlanta Cities
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {METRO_ATLANTA_CITIES.map((area) => (
+                      <button
+                        key={area}
+                        type="button"
+                        onClick={() => selectArea(area)}
+                        className={`px-3 py-2 rounded-xl border text-xs font-bold transition ${
+                          selectedArea === area
+                            ? "border-emerald-600 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500"
+                            : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                        }`}
+                      >
+                        {area}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div>
+                  <span className="text-[10px] font-black uppercase tracking-wider text-slate-400 block mb-2">
+                    Intown Neighborhoods
+                  </span>
+                  <div className="flex flex-wrap gap-1.5">
+                    {INTOWN_ATLANTA_NEIGHBORHOODS.map((area) => (
+                      <button
+                        key={area}
+                        type="button"
+                        onClick={() => selectArea(area)}
+                        className={`px-3 py-2 rounded-xl border text-xs font-bold transition ${
+                          selectedArea === area
+                            ? "border-emerald-600 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500"
+                            : "border-slate-200 hover:bg-slate-50 text-slate-700"
+                        }`}
+                      >
+                        {area}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 flex items-center gap-2">
+                  <input
+                    type="text"
+                    placeholder="Other city or area (e.g. Cumming)..."
+                    value={customAreaInput}
+                    onChange={(e) => setCustomAreaInput(e.target.value)}
+                    onKeyDown={(e) => e.key === "Enter" && selectArea(customAreaInput)}
+                    className="flex-1 p-2.5 text-xs rounded-xl border border-slate-200 font-bold focus:outline-none focus:ring-2 focus:ring-emerald-500"
+                  />
                   <button
-                    key={area}
                     type="button"
-                    onClick={() => {
-                      setSelectedArea(area);
-                      setActiveConstraints((prev) => {
-                        const filtered = prev.filter((c) => c.type !== "area");
-                        return [...filtered, { id: `c_area_${Date.now()}`, type: "area", label: area, confirmed: true }];
-                      });
-                      setActiveEditor(null);
-                    }}
-                    className={`w-full p-3 rounded-2xl border text-left text-xs font-bold transition ${
-                      selectedArea === area
-                        ? "border-emerald-600 bg-emerald-50 text-emerald-950 ring-2 ring-emerald-500"
-                        : "border-slate-200 hover:bg-slate-50 text-slate-700"
-                    }`}
+                    onClick={() => selectArea(customAreaInput)}
+                    disabled={!customAreaInput.trim()}
+                    className="px-3.5 py-2.5 bg-slate-900 disabled:opacity-40 text-white text-xs font-bold rounded-xl"
                   >
-                    {area}
+                    Set
                   </button>
-                ))}
+                </div>
               </div>
             )}
 
