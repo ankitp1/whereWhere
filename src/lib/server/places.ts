@@ -8,53 +8,69 @@ interface GroundedVenueTemplate {
   address: string;
   mapsUrl: string;
   tags: string[];
+  neighborhoods?: string[];
 }
 
-const GROUNDED_MIDTOWN_VENUES: GroundedVenueTemplate[] = [
+const GROUNDED_ATLANTA_VENUES: GroundedVenueTemplate[] = [
   {
     name: "Tabla Midtown",
-    placeId: "ChIJ_z1b7mZZwokRxE-v2s9rR1A",
+    placeId: "ChIJb_fGZ6wE9YgR5i7Hh0XJ6r8",
     rating: 4.6,
     priceLevel: "$$",
-    address: "283 Lexington Ave, New York, NY 10016",
-    mapsUrl: "https://maps.google.com/?q=Tabla+Midtown+NYC",
-    tags: ["Likely vegetarian-friendly", "Modern Indian", "Lively"],
+    address: "300 12th St NE, Atlanta, GA 30309",
+    mapsUrl: "https://maps.google.com/?q=Tabla+Midtown+Atlanta",
+    tags: ["Likely vegetarian-friendly", "Modern Indian", "Midtown Vibe", "Cocktails"],
+    neighborhoods: ["Midtown", "Midtown Atlanta"],
   },
   {
-    name: "Basta Pasta",
-    placeId: "ChIJb4aR75xZwokRQzB9pU4eG8A",
-    rating: 4.5,
+    name: "Rumi's Kitchen Colony Square",
+    placeId: "ChIJvXw9q7gE9YgR3tK5N0yB4zY",
+    rating: 4.8,
+    priceLevel: "$$$",
+    address: "1175 Peachtree St NE, Atlanta, GA 30361",
+    mapsUrl: "https://maps.google.com/?q=Rumis+Kitchen+Colony+Square+Atlanta",
+    tags: ["Likely vegetarian-friendly", "Modern Persian", "Midtown", "Lively"],
+    neighborhoods: ["Midtown", "Midtown Atlanta"],
+  },
+  {
+    name: "Superica Krog Street",
+    placeId: "ChIJO-j8uRQE9YgRs1LqA4dF4z8",
+    rating: 4.6,
     priceLevel: "$$",
-    address: "37 W 17th St, New York, NY 10011",
-    mapsUrl: "https://maps.google.com/?q=Basta+Pasta+NYC",
-    tags: ["Likely vegetarian-friendly", "Likely kid-friendly", "Italian-Japanese", "Open Kitchen"],
+    address: "99 Krog St NE, Atlanta, GA 30307",
+    mapsUrl: "https://maps.google.com/?q=Superica+Krog+Street+Market+Atlanta",
+    tags: ["Likely kid-friendly", "BeltLine Patio", "Tex-Mex", "Inman Park"],
+    neighborhoods: ["Inman Park", "Krog Street", "BeltLine", "Old Fourth Ward"],
   },
   {
-    name: "Planta Queen Flatiron",
-    placeId: "ChIJgX17rK1ZwokR5n8T3d9m2_M",
+    name: "Antico Pizza Napoletana",
+    placeId: "ChIJZ3UeOpcE9YgRtG1Fp2pG4b0",
     rating: 4.7,
     priceLevel: "$$",
-    address: "15 W 27th St, New York, NY 10001",
-    mapsUrl: "https://maps.google.com/?q=Planta+Queen+NYC",
-    tags: ["Likely vegetarian-friendly", "100% Plant-Based", "Asian Fusion", "Cocktails"],
+    address: "1093 Hemphill Ave NW, Atlanta, GA 30318",
+    mapsUrl: "https://maps.google.com/?q=Antico+Pizza+Atlanta",
+    tags: ["Likely kid-friendly", "Casual Communal Seating", "Westside", "Authentic Pizza"],
+    neighborhoods: ["Westside", "West Midtown"],
   },
   {
-    name: "Rubirosa Ristorante",
-    placeId: "ChIJY7vU_1tZwokRYfGqP7sZJ0Y",
+    name: "Upbeet West Midtown",
+    placeId: "ChIJ9f5nSZsE9YgR4HwV2Z4pL6Q",
     rating: 4.6,
     priceLevel: "$$",
-    address: "235 Mulberry St, New York, NY 10012",
-    mapsUrl: "https://maps.google.com/?q=Rubirosa+NYC",
-    tags: ["Likely kid-friendly", "Gluten-free friendly", "Thin Crust Pizza"],
+    address: "1071 Howell Mill Rd NW, Atlanta, GA 30318",
+    mapsUrl: "https://maps.google.com/?q=Upbeet+Atlanta",
+    tags: ["Likely vegetarian-friendly", "100% Plant-Based Friendly", "Organic Bowls", "Casual"],
+    neighborhoods: ["West Midtown", "Westside"],
   },
   {
-    name: "Dhamaka",
-    placeId: "ChIJP3Sa80dZwokR65pE47oB1dE",
-    rating: 4.5,
+    name: "Barcelona Wine Bar Inman Park",
+    placeId: "ChIJa_3jthQE9YgR5e6r0N2t4vQ",
+    rating: 4.7,
     priceLevel: "$$",
-    address: "119 Essex St, New York, NY 10002",
-    mapsUrl: "https://maps.google.com/?q=Dhamaka+NYC",
-    tags: ["Likely vegetarian-friendly", "Regional Indian", "Vibrant"],
+    address: "240 N Highland Ave NE, Atlanta, GA 30307",
+    mapsUrl: "https://maps.google.com/?q=Barcelona+Wine+Bar+Inman+Park+Atlanta",
+    tags: ["Tapas & Small Plates", "BeltLine Vibe", "Great Cocktails", "Patio"],
+    neighborhoods: ["Inman Park", "BeltLine"],
   },
 ];
 
@@ -71,15 +87,25 @@ export async function findGroundedVenues(
         return placesResult;
       }
     } catch (err) {
-      console.warn("Google Places API call failed, using grounded catalog fallback:", err);
+      console.warn("Google Places API call failed, using Atlanta grounded catalog fallback:", err);
     }
   }
 
-  // Filter or augment grounded templates based on constraints
+  // Filter or augment grounded templates based on constraints and Atlanta area
   const isVeg = constraints.some((c) => c.type === "dietary" && /veg/i.test(c.label));
   const isKid = constraints.some((c) => c.type === "kid_friendly");
 
-  return GROUNDED_MIDTOWN_VENUES.map((v, idx) => {
+  // Filter venues matching neighborhood if possible, or return best Atlanta spots
+  let candidates = GROUNDED_ATLANTA_VENUES.filter((v) => {
+    if (!v.neighborhoods) return true;
+    return v.neighborhoods.some((n) => n.toLowerCase().includes(area.toLowerCase()) || area.toLowerCase().includes(n.toLowerCase()));
+  });
+
+  if (candidates.length < 3) {
+    candidates = GROUNDED_ATLANTA_VENUES;
+  }
+
+  return candidates.slice(0, 5).map((v, idx) => {
     const inferred = [...v.tags];
     if (isVeg && !inferred.includes("Likely vegetarian-friendly")) {
       inferred.unshift("Likely vegetarian-friendly");
@@ -108,7 +134,7 @@ async function searchGooglePlaces(
   constraints: ConstraintItem[],
   apiKey: string
 ): Promise<VenueOption[]> {
-  const query = `${area} restaurants dinner group friendly`;
+  const query = `${area} Atlanta restaurants dinner group friendly`;
   const url = `https://places.googleapis.com/v1/places:searchText`;
 
   const res = await fetch(url, {
@@ -141,7 +167,7 @@ async function searchGooglePlaces(
       rating: p.rating || 4.5,
       priceLevel: p.priceLevel || "$$",
       address: p.formattedAddress || "",
-      mapsUrl: p.googleMapsUri || `https://maps.google.com/?q=${encodeURIComponent(p.displayName?.text || area)}`,
+      mapsUrl: p.googleMapsUri || `https://maps.google.com/?q=${encodeURIComponent(p.displayName?.text + " Atlanta")}`,
       inferredTags: tags,
       disqualifiedReason: null,
       suggestedBy: null,

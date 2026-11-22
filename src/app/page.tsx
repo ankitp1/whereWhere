@@ -14,7 +14,6 @@ import {
   ShieldCheck,
   Copy,
   Check,
-  UtensilsCrossed,
   Info,
   Plus,
   X,
@@ -22,34 +21,54 @@ import {
   Flame,
   CheckCircle,
   HelpCircle,
-  ArrowDown,
   MessageCircle,
+  CheckCheck,
+  ChevronRight,
+  Sliders,
+  Compass,
 } from "lucide-react";
 import { ParsedSessionIntent } from "@/lib/server/parser";
 import { ConstraintItem, DateSlotOption } from "@/types/session";
 
 const PROMPT_PRESETS = [
   {
-    label: "🍽️ Midtown Dinner (8 friends)",
-    text: "Dinner next week for 8 of us—Ankit, Raj, Priya, Mike, Sarah, Dan, Maya, Tom. Not Tuesday. Midtown, veg & kid-friendly",
+    emoji: "🥘",
+    label: "Midtown Atlanta (8 friends)",
+    text: "Dinner next week for 8 of us—Ankit, Raj, Priya, Mike, Sarah, Dan, Maya, Tom. Not Tuesday. Midtown Atlanta, veg & kid-friendly",
   },
   {
-    label: "🥞 West Village Brunch",
-    text: "Sunday brunch in West Village with Sarah, Dan, Chloe & Leo. Outdoor seating, kid-friendly",
+    emoji: "☀️",
+    label: "BeltLine / Inman Park Brunch",
+    text: "Saturday brunch on the Atlanta BeltLine around Inman Park with Sarah, Dan, Chloe & Leo. Patio & kid-friendly",
   },
   {
-    label: "🍸 Friday Happy Hour",
-    text: "Drinks this Friday after work with Dave, Elena, Sam & Priya. Flatiron area with good cocktails",
+    emoji: "🍕",
+    label: "Westside / West Midtown",
+    text: "Dinner this Thursday in West Midtown near Howell Mill with Dave, Elena, Sam & Priya. Good cocktails & gluten-free options",
+  },
+  {
+    emoji: "🍸",
+    label: "Buckhead Happy Hour",
+    text: "Friday drinks after work in Buckhead with the team. Good patio & cocktails",
   },
 ];
 
 const SUGGESTED_FILTERS = [
-  { id: "c_sug_veg", type: "dietary" as const, label: "Likely vegetarian-friendly" },
-  { id: "c_sug_kid", type: "kid_friendly" as const, label: "Likely kid-friendly" },
-  { id: "c_sug_outdoor", type: "other" as const, label: "Outdoor seating" },
-  { id: "c_sug_bar", type: "vibe" as const, label: "Full bar / Cocktails" },
-  { id: "c_sug_quiet", type: "vibe" as const, label: "Quiet conversation" },
-  { id: "c_sug_budget", type: "other" as const, label: "Budget-friendly ($$)" },
+  { emoji: "🥦", label: "Likely vegetarian-friendly" },
+  { emoji: "👶", label: "Likely kid-friendly" },
+  { emoji: "☀️", label: "Outdoor seating" },
+  { emoji: "🍸", label: "Full bar / Cocktails" },
+  { emoji: "🤫", label: "Quiet conversation" },
+  { emoji: "💵", label: "Budget-friendly ($$)" },
+];
+
+const AVATAR_COLORS = [
+  "from-emerald-500 to-teal-600",
+  "from-blue-500 to-indigo-600",
+  "from-purple-500 to-pink-600",
+  "from-amber-500 to-orange-600",
+  "from-rose-500 to-red-600",
+  "from-cyan-500 to-blue-600",
 ];
 
 export default function CreateSessionPage() {
@@ -69,7 +88,7 @@ export default function CreateSessionPage() {
   const [showAddFilterModal, setShowAddFilterModal] = useState(false);
   const [newFilterLabel, setNewFilterLabel] = useState("");
 
-  // Auto-parse on load
+  // Parse on load with initial preset
   useEffect(() => {
     handleParse(PROMPT_PRESETS[0].text);
   }, []);
@@ -239,59 +258,63 @@ export default function CreateSessionPage() {
   };
 
   return (
-    <main className="flex-1 flex flex-col p-4 pb-12">
-      {/* Brand Header */}
-      <header className="flex items-center justify-between py-2.5 border-b border-slate-100 mb-3">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-brand-600 to-brand-500 flex items-center justify-center text-white font-black shadow-md shadow-brand-500/20">
-            S
+    <main className="flex-1 flex flex-col p-4 sm:p-5 pb-safe">
+      {/* Sleek App Bar */}
+      <header className="flex items-center justify-between pb-3.5 mb-2 border-b border-slate-200/60">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 rounded-2xl bg-gradient-to-tr from-emerald-600 via-emerald-500 to-teal-400 flex items-center justify-center text-white font-black shadow-md shadow-emerald-500/25">
+            <span className="text-base tracking-tighter">S</span>
           </div>
           <div>
-            <h1 className="text-xl font-black tracking-tight text-slate-900 leading-none">SyncUp</h1>
-            <p className="text-[10px] text-slate-500 font-medium mt-0.5">Zero-Signup Group Coordination</p>
+            <div className="flex items-center gap-1.5">
+              <h1 className="text-lg font-black tracking-tight text-slate-900 leading-none">SyncUp</h1>
+              <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-1.5 py-0.5 rounded-md">v1.3</span>
+            </div>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">Zero-Signup Group Coordination</p>
           </div>
         </div>
-        <div className="flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-50 text-emerald-800 text-xs font-semibold border border-emerald-200">
-          <ShieldCheck className="w-3.5 h-3.5 text-brand-600" />
+
+        <div className="flex items-center gap-1 px-2.5 py-1 rounded-full bg-white border border-slate-200/80 shadow-xs text-xs font-semibold text-slate-700">
+          <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
           <span>Zero Passwords</span>
         </div>
       </header>
 
-      {/* SUCCESS MODAL / CARD */}
+      {/* SUCCESS / CREATED ROOM MODAL */}
       {createdUrl ? (
-        <div className="flex-1 flex flex-col items-center justify-center text-center animate-fade-in py-6">
-          <div className="w-16 h-16 rounded-full bg-brand-50 flex items-center justify-center text-brand-600 mb-4 ring-8 ring-brand-50/50">
-            <CheckCircle2 className="w-9 h-9" />
+        <div className="flex-1 flex flex-col items-center justify-center text-center animate-fade-in py-8 px-2">
+          <div className="w-20 h-20 rounded-3xl bg-gradient-to-tr from-emerald-500 to-teal-400 flex items-center justify-center text-white mb-4 shadow-xl shadow-emerald-500/30 ring-8 ring-emerald-50">
+            <CheckCircle2 className="w-10 h-10" />
           </div>
-          <h2 className="text-2xl font-bold text-slate-900">Meetup Room Ready!</h2>
-          <p className="text-sm text-slate-600 mt-1 max-w-xs">
+          <h2 className="text-2xl font-black text-slate-900 tracking-tight">Meetup Room Live!</h2>
+          <p className="text-xs text-slate-600 mt-1.5 max-w-xs leading-relaxed">
             Drop this single link into your WhatsApp or iMessage thread. Friends tap their name to vote in 10 seconds.
           </p>
 
-          <div className="w-full mt-6 bg-slate-50 border border-slate-200 rounded-2xl p-4 text-left">
-            <label className="text-xs font-semibold text-slate-500 uppercase tracking-wider block mb-1">
+          <div className="w-full mt-6 bg-white border border-slate-200/80 rounded-2xl p-4 text-left shadow-sm">
+            <label className="text-[11px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
               Shareable Group Link
             </label>
-            <div className="flex items-center gap-2 bg-white border border-slate-200 rounded-xl px-3 py-2 text-xs font-mono text-slate-700 break-all select-all">
+            <div className="flex items-center gap-2 bg-slate-50 border border-slate-200 rounded-xl px-3 py-2.5 text-xs font-mono text-slate-800 break-all select-all">
               <span className="truncate flex-1">{createdUrl}</span>
               <button
                 onClick={() => copyToClipboard(createdUrl)}
-                className="p-1.5 hover:bg-slate-100 rounded-lg text-slate-500 active:scale-95 transition"
+                className="p-1.5 bg-white hover:bg-slate-100 rounded-lg text-slate-600 shadow-xs border border-slate-200 active:scale-95 transition"
                 title="Copy link"
               >
-                {copied ? <Check className="w-4 h-4 text-brand-600" /> : <Copy className="w-4 h-4" />}
+                {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
-            <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1">
+            <p className="text-[11px] text-slate-400 mt-2 flex items-center gap-1.5">
               <Info className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              Your organizer key is saved in this link so you can manage lock-in.
+              Your organizer key is embedded in this link.
             </p>
           </div>
 
-          <div className="w-full mt-5 space-y-2.5">
+          <div className="w-full mt-6 space-y-2.5">
             <button
               onClick={shareToChat}
-              className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 text-white font-semibold py-3.5 px-4 rounded-xl shadow-lg shadow-brand-600/20 active:scale-[0.98] transition"
+              className="w-full flex items-center justify-center gap-2.5 bg-emerald-600 hover:bg-emerald-700 text-white font-bold py-4 px-4 rounded-2xl shadow-xl shadow-emerald-600/30 active:scale-[0.98] transition text-sm"
             >
               <Share2 className="w-4 h-4" />
               <span>Share to Group Chat</span>
@@ -299,7 +322,7 @@ export default function CreateSessionPage() {
 
             <button
               onClick={() => router.push(createdUrl.replace(window.location.origin, ""))}
-              className="w-full flex items-center justify-center gap-2 bg-slate-100 hover:bg-slate-200 text-slate-800 font-semibold py-3 px-4 rounded-xl active:scale-[0.98] transition text-sm"
+              className="w-full flex items-center justify-center gap-2 bg-white hover:bg-slate-50 text-slate-800 font-bold py-3.5 px-4 rounded-2xl border border-slate-200 shadow-xs active:scale-[0.98] transition text-xs"
             >
               <span>Open Meetup Room</span>
               <ArrowRight className="w-4 h-4" />
@@ -308,134 +331,151 @@ export default function CreateSessionPage() {
         </div>
       ) : (
         <div className="flex-1 flex flex-col space-y-4">
-          {/* VALUE PROPOSITION HERO CARD */}
-          <div className="bg-gradient-to-br from-slate-900 via-slate-800 to-emerald-950 text-white rounded-3xl p-4.5 shadow-lg space-y-3 border border-slate-800">
-            <div className="flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-emerald-400 bg-emerald-950/70 border border-emerald-800/80 px-2.5 py-0.5 rounded-full w-fit">
-              <Zap className="w-3 h-3 text-emerald-400 fill-emerald-400" />
-              <span>The Anti-Doodle for Group Chats</span>
-            </div>
+          {/* HIGH-CONVERTING VALUE PROP HERO CARD */}
+          <section className="relative overflow-hidden bg-gradient-to-br from-[#111827] via-[#0f172a] to-[#064e3b] text-white rounded-[28px] p-5 shadow-xl border border-slate-800/80">
+            {/* Background subtle mesh glow */}
+            <div className="absolute -top-16 -right-16 w-44 h-44 bg-emerald-500/20 blur-3xl rounded-full pointer-events-none" />
 
-            <h2 className="text-xl font-black tracking-tight leading-snug text-white">
-              Lock in <span className="text-brand-400">When & Where</span> without 50 messages back and forth.
-            </h2>
-
-            <p className="text-xs text-slate-300 leading-relaxed">
-              WhatsApp polls break when dates and food restrictions overlap. Doodle requires tedious form setups. 
-              <strong> SyncUp takes 1 messy sentence</strong>, generates grounded options, and reaches quorum fast.
-            </p>
-
-            {/* 3 Value Pillars */}
-            <div className="grid grid-cols-3 gap-2 pt-2 border-t border-slate-800/80 text-[10px]">
-              <div className="flex flex-col items-center text-center p-1.5 bg-white/5 rounded-xl">
-                <span className="font-bold text-emerald-400 mb-0.5">10-Sec Setup</span>
-                <span className="text-slate-300">Just type 1 sentence</span>
+            <div className="relative z-10 space-y-3">
+              <div className="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider text-emerald-400 bg-emerald-950/80 border border-emerald-500/30 px-3 py-1 rounded-full shadow-xs">
+                <Zap className="w-3 h-3 text-emerald-400 fill-emerald-400" />
+                <span>The Anti-Doodle for Group Chats</span>
               </div>
-              <div className="flex flex-col items-center text-center p-1.5 bg-white/5 rounded-xl">
-                <span className="font-bold text-brand-400 mb-0.5">Zero Friction</span>
-                <span className="text-slate-300">Friends tap & vote</span>
-              </div>
-              <div className="flex flex-col items-center text-center p-1.5 bg-white/5 rounded-xl">
-                <span className="font-bold text-amber-400 mb-0.5">Anti-Revolt</span>
-                <span className="text-slate-300">2h lock window & .ics</span>
+
+              <h2 className="text-xl sm:text-2xl font-black tracking-tight leading-tight text-white">
+                Lock in <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-green-200">When & Where</span> without the 50-message debate.
+              </h2>
+
+              <p className="text-xs text-slate-300 leading-relaxed">
+                WhatsApp polls break when availability, food diets, and neighborhoods overlap. Doodle takes 20 form fields. 
+                SyncUp takes <strong>1 messy sentence</strong> and gets everyone aligned in 10 seconds.
+              </p>
+
+              {/* Instant Before vs After Comparison Strip */}
+              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800/80 text-[11px]">
+                <div className="bg-red-950/40 border border-red-500/20 rounded-xl p-2.5">
+                  <span className="font-bold text-red-400 block text-[10px] uppercase">❌ Group Chat Poll</span>
+                  <p className="text-slate-300 mt-0.5 text-[11px] leading-tight">
+                    "Friday won, but 3 can't eat meat & nobody booked a table 🤯"
+                  </p>
+                </div>
+                <div className="bg-emerald-950/40 border border-emerald-500/30 rounded-xl p-2.5">
+                  <span className="font-bold text-emerald-400 block text-[10px] uppercase">✅ With SyncUp</span>
+                  <p className="text-slate-200 mt-0.5 text-[11px] leading-tight">
+                    Fri @ 7:30 PM at Tabla Midtown • 1-tap Google Map + .ics invite 🎉
+                  </p>
+                </div>
               </div>
             </div>
-          </div>
+          </section>
 
-          {/* Quick Preset Prompts */}
-          <div className="space-y-1.5">
-            <label className="text-xs font-semibold text-slate-700 flex items-center justify-between">
-              <span>Try a 1-tap template or type below:</span>
-            </label>
-            <div className="flex gap-1.5 overflow-x-auto no-scrollbar py-0.5">
-              {PROMPT_PRESETS.map((preset, idx) => (
-                <button
-                  key={preset.label}
-                  type="button"
-                  onClick={() => {
-                    setInputText(preset.text);
-                    handleParse(preset.text);
-                  }}
-                  className={`text-[11px] px-3 py-1.5 rounded-xl border shrink-0 font-medium transition ${
-                    inputText === preset.text
-                      ? "bg-slate-900 border-slate-900 text-white font-semibold"
-                      : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
-                  }`}
-                >
-                  {preset.label}
-                </button>
-              ))}
+          {/* QUICK PRESET PILLS */}
+          <section className="space-y-1.5">
+            <div className="flex items-center justify-between px-0.5">
+              <label className="text-[11px] font-bold text-slate-700 uppercase tracking-wider">
+                Try a 1-tap example:
+              </label>
             </div>
-          </div>
+            <div className="flex gap-2 overflow-x-auto no-scrollbar py-0.5">
+              {PROMPT_PRESETS.map((preset) => {
+                const isActive = inputText === preset.text;
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setInputText(preset.text);
+                      handleParse(preset.text);
+                    }}
+                    className={`text-xs px-3 py-2 rounded-2xl border shrink-0 font-medium transition flex items-center gap-1.5 active:scale-95 ${
+                      isActive
+                        ? "bg-slate-900 border-slate-900 text-white font-bold shadow-md shadow-slate-900/10"
+                        : "bg-white border-slate-200/80 text-slate-700 hover:bg-slate-50 shadow-xs"
+                    }`}
+                  >
+                    <span>{preset.emoji}</span>
+                    <span>{preset.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </section>
 
-          {/* Text Input Area */}
-          <div className="space-y-1.5">
-            <div className="relative">
+          {/* MAGIC PROMPT TEXTAREA */}
+          <section className="space-y-1.5">
+            <div className="relative group">
               <textarea
                 value={inputText}
                 onChange={(e) => setInputText(e.target.value)}
                 rows={3}
-                className="w-full p-3.5 text-xs sm:text-sm rounded-2xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500 focus:border-transparent transition bg-white resize-none text-slate-900 shadow-sm leading-relaxed"
-                placeholder="Type your messy sentence: e.g. Dinner next week for 8 of us—Ankit, Raj, Priya, Mike. Not Tuesday. Midtown, veg & kid-friendly"
+                className="w-full p-4 text-xs sm:text-sm rounded-2xl border border-slate-200/90 focus:outline-none focus:ring-2 focus:ring-emerald-500 focus:border-transparent transition bg-white resize-none text-slate-900 shadow-sm leading-relaxed"
+                placeholder="Type your messy sentence: e.g. Dinner next week for 8 of us—Ankit, Raj, Priya, Mike. Not Tuesday. Midtown Atlanta, veg & kid-friendly"
               />
               {isParsing && (
-                <div className="absolute right-3 bottom-3 flex items-center gap-1.5 text-xs text-brand-600 font-medium bg-brand-50 px-2 py-1 rounded-lg">
-                  <div className="w-2.5 h-2.5 rounded-full border-2 border-brand-500 border-t-transparent animate-spin" />
-                  <span>Parsing...</span>
+                <div className="absolute right-3.5 bottom-3.5 flex items-center gap-1.5 text-xs text-emerald-700 font-semibold bg-emerald-50 px-2.5 py-1 rounded-xl border border-emerald-200/60 shadow-xs">
+                  <div className="w-3 h-3 rounded-full border-2 border-emerald-600 border-t-transparent animate-spin" />
+                  <span>Extracting plan...</span>
                 </div>
               )}
             </div>
 
             <div className="flex items-center justify-between text-xs text-slate-500 px-1">
               <span className="text-[11px] text-slate-400">
-                AI extracts dates, names, diets & area
+                AI extracts friends, constraints & grounded dates
               </span>
               <button
                 type="button"
                 onClick={() => handleParse(inputText)}
-                className="text-brand-600 font-semibold hover:text-brand-700 bg-brand-50 hover:bg-brand-100 px-2.5 py-1 rounded-lg transition text-[11px] flex items-center gap-1"
+                className="text-emerald-700 font-bold hover:text-emerald-800 bg-emerald-50 hover:bg-emerald-100 px-3 py-1 rounded-xl transition text-[11px] flex items-center gap-1.5 border border-emerald-200/60 shadow-xs"
               >
-                <Sparkles className="w-3 h-3" />
+                <Sparkles className="w-3 h-3 text-emerald-600" />
                 <span>Re-analyze</span>
               </button>
             </div>
-          </div>
+          </section>
 
-          {/* PARSED INTERACTIVE CARD (Clickable candidate dates and filters) */}
+          {/* INTERACTIVE PARSED SUMMARY (Clickable candidate dates and filters) */}
           {parsed && (
-            <div className="space-y-3.5 bg-slate-50/90 border border-slate-200 rounded-3xl p-3.5 animate-fade-in shadow-xs">
+            <section className="space-y-4 bg-white border border-slate-200/80 rounded-[28px] p-4.5 shadow-sm animate-fade-in">
               {/* Friends Named Chip Carousel */}
               <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="text-xs font-bold text-slate-800 flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-brand-600" />
+                <div className="flex items-center justify-between mb-2">
+                  <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-emerald-600" />
                     <span>Crew Named ({Object.keys(parsed.participants).length})</span>
                   </label>
-                  <span className="text-[10px] text-slate-400">Tap × to remove</span>
+                  <span className="text-[10px] text-slate-400 font-medium">Tap × to remove</span>
                 </div>
 
-                <div className="flex flex-wrap gap-1.5">
-                  {Object.entries(parsed.participants).map(([id, p], idx) => (
-                    <span
-                      key={id}
-                      className={`text-xs px-2.5 py-1 rounded-xl font-medium border flex items-center gap-1.5 transition ${
-                        idx === 0
-                          ? "bg-brand-50 border-brand-200 text-brand-800 font-semibold"
-                          : "bg-white border-slate-200 text-slate-700"
-                      }`}
-                    >
-                      <span>{p.name} {idx === 0 && "(You)"}</span>
-                      {idx !== 0 && (
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveParticipant(id)}
-                          className="text-slate-400 hover:text-red-500 ml-0.5 font-bold"
-                          title="Remove from list"
-                        >
-                          ×
-                        </button>
-                      )}
-                    </span>
-                  ))}
+                <div className="flex flex-wrap gap-2">
+                  {Object.entries(parsed.participants).map(([id, p], idx) => {
+                    const gradient = AVATAR_COLORS[idx % AVATAR_COLORS.length];
+                    return (
+                      <div
+                        key={id}
+                        className={`text-xs pl-1.5 pr-2.5 py-1 rounded-xl border flex items-center gap-1.5 transition ${
+                          idx === 0
+                            ? "bg-emerald-50/80 border-emerald-300 text-emerald-950 font-bold shadow-xs"
+                            : "bg-slate-50 border-slate-200/80 text-slate-800"
+                        }`}
+                      >
+                        <div className={`w-5 h-5 rounded-lg bg-gradient-to-tr ${gradient} text-white font-black text-[10px] flex items-center justify-center shrink-0`}>
+                          {p.name.charAt(0).toUpperCase()}
+                        </div>
+                        <span className="truncate max-w-[100px]">{p.name} {idx === 0 && "(You)"}</span>
+                        {idx !== 0 && (
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveParticipant(id)}
+                            className="text-slate-400 hover:text-red-500 font-bold ml-0.5 text-sm"
+                            title="Remove from list"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    );
+                  })}
                   <span className="text-[11px] text-slate-400 self-center italic px-1">
                     + anyone can join
                   </span>
@@ -443,48 +483,64 @@ export default function CreateSessionPage() {
               </div>
 
               {/* CLICKABLE CANDIDATE DATES & CLICKABLE ACTIVE FILTERS */}
-              <div className="grid grid-cols-2 gap-3 pt-2 border-t border-slate-200/80">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5 pt-3 border-t border-slate-100">
                 {/* 1. Candidate Dates (Clickable with Visual Feedback) */}
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1">
-                      <Calendar className="w-3 h-3 text-brand-600" />
+                    <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <Calendar className="w-3.5 h-3.5 text-emerald-600" />
                       <span>Candidate Dates</span>
                     </label>
                     <button
                       type="button"
                       onClick={() => setShowAddDateModal(true)}
-                      className="text-[10px] text-brand-600 hover:text-brand-700 font-bold flex items-center gap-0.5 bg-brand-50 hover:bg-brand-100 px-1.5 py-0.5 rounded-md"
+                      className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200/60"
                     >
-                      <Plus className="w-2.5 h-2.5" />
+                      <Plus className="w-3 h-3" />
                       <span>Add</span>
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-500 font-medium">
-                    Tap to include / exclude:
+                  <p className="text-[10px] text-slate-400">
+                    Tap to toggle dates included in poll:
                   </p>
 
                   <div className="space-y-1.5">
                     {parsed.dateSlots.map((s) => {
                       const isSelected = selectedDateIds.includes(s.id);
+                      // Extract day and month if available
+                      const parts = s.label.split(" • ");
+                      const dateTitle = parts[0] || s.label;
+                      const timeWindow = parts[1] || "Evening";
+
                       return (
                         <button
                           type="button"
                           key={s.id}
                           onClick={() => toggleDateSlot(s.id)}
-                          className={`w-full text-left text-xs px-2.5 py-2 rounded-xl border flex items-center justify-between gap-1 transition active:scale-[0.98] ${
+                          className={`w-full text-left p-2.5 rounded-2xl border flex items-center justify-between gap-2 transition active:scale-[0.98] ${
                             isSelected
-                              ? "bg-white border-brand-400 text-slate-900 shadow-xs font-semibold ring-1 ring-brand-500/10"
-                              : "bg-slate-100 border-slate-200 text-slate-400 line-through"
+                              ? "bg-white border-emerald-500/80 text-slate-900 shadow-xs font-semibold ring-1 ring-emerald-500/20"
+                              : "bg-slate-100/60 border-slate-200 text-slate-400 line-through opacity-70"
                           }`}
                         >
-                          <span className="truncate">{s.label}</span>
+                          <div className="flex items-center gap-2.5">
+                            <div className={`w-8 h-8 rounded-xl flex flex-col items-center justify-center text-[10px] font-black shrink-0 ${
+                              isSelected ? "bg-emerald-100 text-emerald-800" : "bg-slate-200 text-slate-500"
+                            }`}>
+                              <Calendar className="w-4 h-4" />
+                            </div>
+                            <div>
+                              <span className="text-xs font-bold text-slate-900 block truncate">{dateTitle}</span>
+                              <span className="text-[10px] text-slate-500 font-medium">{timeWindow}</span>
+                            </div>
+                          </div>
+
                           {isSelected ? (
-                            <span className="w-4 h-4 rounded-full bg-brand-600 text-white flex items-center justify-center shrink-0">
-                              <Check className="w-3 h-3" />
+                            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                              <Check className="w-3 h-3 stroke-[3]" />
                             </span>
                           ) : (
-                            <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center shrink-0">
+                            <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center shrink-0">
                               <Plus className="w-3 h-3" />
                             </span>
                           )}
@@ -495,23 +551,23 @@ export default function CreateSessionPage() {
                 </div>
 
                 {/* 2. Active Filters (Clickable with Visual Feedback) */}
-                <div className="space-y-1.5">
+                <div className="space-y-2">
                   <div className="flex items-center justify-between">
-                    <label className="text-[11px] font-bold text-slate-800 flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-brand-600" />
+                    <label className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                      <MapPin className="w-3.5 h-3.5 text-emerald-600" />
                       <span>Active Filters</span>
                     </label>
                     <button
                       type="button"
                       onClick={() => setShowAddFilterModal(true)}
-                      className="text-[10px] text-brand-600 hover:text-brand-700 font-bold flex items-center gap-0.5 bg-brand-50 hover:bg-brand-100 px-1.5 py-0.5 rounded-md"
+                      className="text-[11px] text-emerald-700 hover:text-emerald-800 font-bold flex items-center gap-1 bg-emerald-50 hover:bg-emerald-100 px-2 py-0.5 rounded-lg border border-emerald-200/60"
                     >
-                      <Plus className="w-2.5 h-2.5" />
+                      <Plus className="w-3 h-3" />
                       <span>Add</span>
                     </button>
                   </div>
-                  <p className="text-[10px] text-slate-500 font-medium">
-                    Tap to toggle on / off:
+                  <p className="text-[10px] text-slate-400">
+                    Tap to toggle constraints on / off:
                   </p>
 
                   <div className="space-y-1.5">
@@ -522,19 +578,25 @@ export default function CreateSessionPage() {
                           type="button"
                           key={c.id}
                           onClick={() => toggleConstraint(c.id)}
-                          className={`w-full text-left text-xs px-2.5 py-2 rounded-xl border flex items-center justify-between gap-1 transition active:scale-[0.98] ${
+                          className={`w-full text-left p-2.5 rounded-2xl border flex items-center justify-between gap-2 transition active:scale-[0.98] ${
                             isActive
-                              ? "bg-white border-brand-400 text-slate-900 shadow-xs font-semibold ring-1 ring-brand-500/10"
-                              : "bg-slate-100 border-slate-200 text-slate-400 line-through"
+                              ? "bg-white border-emerald-500/80 text-slate-900 shadow-xs font-semibold ring-1 ring-emerald-500/20"
+                              : "bg-slate-100/60 border-slate-200 text-slate-400 line-through opacity-70"
                           }`}
                         >
-                          <span className="truncate">{c.label}</span>
+                          <div className="flex items-center gap-2">
+                            <span className="text-sm">
+                              {c.type === "dietary" ? "🥗" : c.type === "excluded_day" ? "🚫" : c.type === "area" ? "📍" : "✨"}
+                            </span>
+                            <span className="text-xs font-bold text-slate-900 truncate">{c.label}</span>
+                          </div>
+
                           {isActive ? (
-                            <span className="w-4 h-4 rounded-full bg-brand-600 text-white flex items-center justify-center shrink-0">
-                              <Check className="w-3 h-3" />
+                            <span className="w-5 h-5 rounded-full bg-emerald-600 text-white flex items-center justify-center shrink-0 shadow-xs">
+                              <Check className="w-3 h-3 stroke-[3]" />
                             </span>
                           ) : (
-                            <span className="w-4 h-4 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center shrink-0">
+                            <span className="w-5 h-5 rounded-full bg-slate-200 text-slate-500 flex items-center justify-center shrink-0">
                               <Plus className="w-3 h-3" />
                             </span>
                           )}
@@ -545,9 +607,9 @@ export default function CreateSessionPage() {
                 </div>
               </div>
 
-              {/* Quick Preset Filter Chips */}
-              <div className="pt-2 border-t border-slate-200/80">
-                <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block mb-1.5">
+              {/* 1-Tap Suggested Filter Strip */}
+              <div className="pt-2 border-t border-slate-100">
+                <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block mb-1.5">
                   1-Tap Filter Suggestions
                 </span>
                 <div className="flex flex-wrap gap-1.5">
@@ -560,18 +622,19 @@ export default function CreateSessionPage() {
                         key={sug.label}
                         type="button"
                         onClick={() => handleAddCustomFilter(sug.label)}
-                        className={`text-[11px] px-2.5 py-1 rounded-xl border transition flex items-center gap-1 active:scale-95 ${
+                        className={`text-xs px-3 py-1.5 rounded-xl border transition flex items-center gap-1.5 active:scale-95 ${
                           alreadyActive
-                            ? "bg-brand-50 border-brand-300 text-brand-900 font-semibold"
-                            : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
+                            ? "bg-emerald-50 border-emerald-300 text-emerald-950 font-bold shadow-xs"
+                            : "bg-slate-50 border-slate-200/80 text-slate-700 hover:bg-slate-100"
                         }`}
                       >
-                        {alreadyActive ? (
-                          <Check className="w-3 h-3 text-brand-600" />
-                        ) : (
-                          <Plus className="w-3 h-3 text-slate-400" />
-                        )}
+                        <span>{sug.emoji}</span>
                         <span>{sug.label}</span>
+                        {alreadyActive ? (
+                          <Check className="w-3 h-3 text-emerald-600 ml-0.5" />
+                        ) : (
+                          <Plus className="w-3 h-3 text-slate-400 ml-0.5" />
+                        )}
                       </button>
                     );
                   })}
@@ -580,13 +643,13 @@ export default function CreateSessionPage() {
 
               {/* 1-2 Quick Tap Clarifiers */}
               {parsed.clarifiers && parsed.clarifiers.length > 0 && (
-                <div className="pt-2 border-t border-slate-200/80 space-y-2">
-                  <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wider block">
+                <div className="pt-2.5 border-t border-slate-100 space-y-2.5">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
                     Quick Clarifiers (Optional)
                   </span>
                   {parsed.clarifiers.map((cl) => (
                     <div key={cl.id} className="space-y-1">
-                      <p className="text-xs font-medium text-slate-700">{cl.question}</p>
+                      <p className="text-xs font-semibold text-slate-800">{cl.question}</p>
                       <div className="flex flex-wrap gap-1.5">
                         {cl.options.map((opt) => {
                           const isSelected = clarifierAnswers[cl.id] === opt;
@@ -600,10 +663,10 @@ export default function CreateSessionPage() {
                                   [cl.id]: opt,
                                 }))
                               }
-                              className={`text-xs px-2.5 py-1 rounded-xl border transition ${
+                              className={`text-xs px-3 py-1.5 rounded-xl border transition active:scale-95 ${
                                 isSelected
-                                  ? "bg-slate-900 border-slate-900 text-white font-medium"
-                                  : "bg-white border-slate-200 text-slate-600 hover:bg-slate-50"
+                                  ? "bg-slate-900 border-slate-900 text-white font-bold shadow-sm"
+                                  : "bg-white border-slate-200 text-slate-700 hover:bg-slate-50"
                               }`}
                             >
                               {opt}
@@ -615,44 +678,44 @@ export default function CreateSessionPage() {
                   ))}
                 </div>
               )}
-            </div>
+            </section>
           )}
 
-          {/* Create Action Button */}
-          <div className="pt-1">
+          {/* LARGE TACTILE ACTION BUTTON */}
+          <section className="pt-1">
             <button
               onClick={handleCreate}
               disabled={isCreating || !parsed || selectedDateIds.length === 0}
-              className="w-full flex items-center justify-center gap-2 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-bold py-4 px-4 rounded-2xl shadow-xl shadow-brand-600/25 active:scale-[0.98] transition text-base"
+              className="w-full flex items-center justify-center gap-2.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 disabled:opacity-50 text-white font-black py-4 px-5 rounded-2xl shadow-xl shadow-emerald-600/30 active:scale-[0.98] transition text-base tracking-tight"
             >
               {isCreating ? (
                 <>
-                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
-                  <span>Creating Meetup Room...</span>
+                  <div className="w-5 h-5 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  <span>Generating Poll Room...</span>
                 </>
               ) : (
                 <>
-                  <span>Create Meetup & Get Share Link</span>
+                  <span>Create Meetup & Get WhatsApp Link</span>
                   <ArrowRight className="w-5 h-5" />
                 </>
               )}
             </button>
-            <p className="text-center text-[11px] text-slate-400 mt-2">
-              Ready in 10 seconds • No app download • Zero passwords
+            <p className="text-center text-[11px] text-slate-500 mt-2 font-medium">
+              ⚡ Ready in 10 seconds • No app download • Zero passwords
             </p>
-          </div>
+          </section>
         </div>
       )}
 
       {/* Add Date Modal */}
       {showAddDateModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-fade-in">
           <div className="w-full max-w-sm bg-white rounded-3xl p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">Add Candidate Date</h3>
+              <h3 className="text-base font-black text-slate-900">Add Candidate Date</h3>
               <button
                 onClick={() => setShowAddDateModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -668,20 +731,20 @@ export default function CreateSessionPage() {
               onChange={(e) => setNewDateLabel(e.target.value)}
               placeholder="e.g. Sun, Nov 29 • Evening"
               autoFocus
-              className="w-full p-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full p-3.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
             />
 
             <div className="flex items-center gap-2 pt-1">
               <button
                 onClick={() => setShowAddDateModal(false)}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition"
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
               >
                 Cancel
               </button>
               <button
                 onClick={handleAddCustomDate}
                 disabled={!newDateLabel.trim()}
-                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs transition"
+                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition"
               >
                 Add Date
               </button>
@@ -692,13 +755,13 @@ export default function CreateSessionPage() {
 
       {/* Add Filter Modal */}
       {showAddFilterModal && (
-        <div className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-fade-in">
+        <div className="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm flex items-end sm:items-center justify-center p-4 animate-fade-in">
           <div className="w-full max-w-sm bg-white rounded-3xl p-5 space-y-4 shadow-2xl">
             <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-slate-900">Add Preference / Filter</h3>
+              <h3 className="text-base font-black text-slate-900">Add Preference / Filter</h3>
               <button
                 onClick={() => setShowAddFilterModal(false)}
-                className="p-1 text-slate-400 hover:text-slate-600 rounded-lg"
+                className="p-1.5 text-slate-400 hover:text-slate-600 rounded-xl"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -714,20 +777,20 @@ export default function CreateSessionPage() {
               onChange={(e) => setNewFilterLabel(e.target.value)}
               placeholder="e.g. Rooftop or Gluten-free friendly"
               autoFocus
-              className="w-full p-3 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-brand-500"
+              className="w-full p-3.5 text-sm rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-emerald-500 font-semibold"
             />
 
             <div className="flex items-center gap-2 pt-1">
               <button
                 onClick={() => setShowAddFilterModal(false)}
-                className="flex-1 py-2.5 bg-slate-100 hover:bg-slate-200 text-slate-700 font-semibold rounded-xl text-xs transition"
+                className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
               >
                 Cancel
               </button>
               <button
                 onClick={() => handleAddCustomFilter()}
                 disabled={!newFilterLabel.trim()}
-                className="flex-1 py-2.5 bg-brand-600 hover:bg-brand-700 disabled:opacity-50 text-white font-semibold rounded-xl text-xs transition"
+                className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 disabled:opacity-50 text-white font-bold rounded-xl text-xs transition"
               >
                 Add Filter
               </button>

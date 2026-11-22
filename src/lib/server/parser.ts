@@ -157,22 +157,25 @@ function parseWithRules(text: string, lower: string, refDate: Date): ParsedSessi
     });
   }
 
-  // Neighborhood / Area
+  // Neighborhood / Area (prioritizing Atlanta neighborhoods)
   const neighborhoods = [
+    "West Midtown",
+    "Midtown Atlanta",
+    "Inman Park",
+    "Old Fourth Ward",
+    "Ponce City Market",
+    "Virginia-Highland",
+    "Krog Street",
+    "BeltLine",
+    "Buckhead",
+    "Decatur",
+    "Westside",
+    "Cabbagetown",
     "Midtown",
+    "Downtown Atlanta",
     "Downtown",
-    "Uptown",
-    "West Village",
-    "East Village",
-    "Chelsea",
-    "SoHo",
-    "Williamsburg",
-    "DUMBO",
-    "Fulton",
-    "Financial District",
-    "Flatiron",
   ];
-  let matchedArea = "Midtown";
+  let matchedArea = "Midtown Atlanta";
   for (const n of neighborhoods) {
     if (new RegExp(`\\b${n}\\b`, "i").test(lower)) {
       matchedArea = n;
