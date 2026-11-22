@@ -246,14 +246,132 @@ class FirestoreStore implements ISyncUpDatabase {
   }
 }
 
+// Zero-dependency Upstash Redis REST Store (works seamlessly with Vercel Storage / Marketplace Upstash)
+class UpstashRedisStore implements ISyncUpDatabase {
+  private url: string;
+  private token: string;
+  private readonly ttlSeconds = 90 * 24 * 60 * 60; // 90-day TTL
+
+  constructor(url: string, token: string) {
+    this.url = url.replace(/\/$/, "");
+    this.token = token;
+  }
+
+  private async cmd<T = any>(command: (string | number)[]): Promise<T | null> {
+    const res = await fetch(this.url, {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${this.token}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(command),
+      cache: "no-store",
+    });
+    if (!res.ok) {
+      const errText = await res.text();
+      throw new Error(`Upstash Redis error (${res.status}): ${errText}`);
+    }
+    const data = await res.json();
+    return (data?.result ?? null) as T | null;
+  }
+
+  async getSession(sessionId: string): Promise<SessionDocument | null> {
+    const raw = await this.cmd<string>(["GET", `ww:session:${sessionId}`]);
+    if (!raw) return null;
+    return JSON.parse(raw) as SessionDocument;
+  }
+
+  async getSessionBySlug(slug: string): Promise<SessionDocument | null> {
+    const sessionId = await this.cmd<string>(["GET", `ww:slug:${slug}`]);
+    if (sessionId) {
+      return this.getSession(sessionId);
+    }
+    return this.getSession(slug);
+  }
+
+  async createSession(session: SessionDocument, meta: SessionPrivateMeta): Promise<void> {
+    await Promise.all([
+      this.cmd(["SET", `ww:session:${session.sessionId}`, JSON.stringify(session), "EX", this.ttlSeconds]),
+      this.cmd(["SET", `ww:slug:${session.slug}`, session.sessionId, "EX", this.ttlSeconds]),
+      this.cmd(["SET", `ww:meta:${session.sessionId}`, JSON.stringify(meta), "EX", this.ttlSeconds]),
+    ]);
+  }
+
+  async updateSession(
+    sessionId: string,
+    updater: (current: SessionDocument) => SessionDocument
+  ): Promise<SessionDocument> {
+    const current = await this.getSession(sessionId);
+    if (!current) throw new Error("Session not found: " + sessionId);
+    const updated = updater(JSON.parse(JSON.stringify(current)));
+    await this.cmd(["SET", `ww:session:${sessionId}`, JSON.stringify(updated), "EX", this.ttlSeconds]);
+    if (updated.slug !== current.slug) {
+      await Promise.all([
+        this.cmd(["DEL", `ww:slug:${current.slug}`]),
+        this.cmd(["SET", `ww:slug:${updated.slug}`, sessionId, "EX", this.ttlSeconds]),
+      ]);
+    }
+    return updated;
+  }
+
+  async getPrivateMeta(sessionId: string): Promise<SessionPrivateMeta | null> {
+    const raw = await this.cmd<string>(["GET", `ww:meta:${sessionId}`]);
+    if (!raw) return null;
+    return JSON.parse(raw) as SessionPrivateMeta;
+  }
+
+  async updatePrivateMeta(
+    sessionId: string,
+    updater: (current: SessionPrivateMeta) => SessionPrivateMeta
+  ): Promise<SessionPrivateMeta> {
+    const current = await this.getPrivateMeta(sessionId);
+    if (!current) throw new Error("Private meta not found: " + sessionId);
+    const updated = updater(JSON.parse(JSON.stringify(current)));
+    await this.cmd(["SET", `ww:meta:${sessionId}`, JSON.stringify(updated), "EX", this.ttlSeconds]);
+    return updated;
+  }
+
+  async addAuditLog(sessionId: string, event: AuditLogEvent): Promise<void> {
+    const key = `ww:audit:${sessionId}`;
+    await this.cmd(["RPUSH", key, JSON.stringify(event)]);
+    await this.cmd(["EXPIRE", key, this.ttlSeconds]);
+  }
+
+  async addNudge(sessionId: string, nudge: NudgeRecord): Promise<void> {
+    const key = `ww:nudge:${sessionId}`;
+    await this.cmd(["RPUSH", key, JSON.stringify(nudge)]);
+    await this.cmd(["EXPIRE", key, this.ttlSeconds]);
+  }
+
+  async verifyAdmin(sessionId: string, secretToken: string): Promise<boolean> {
+    const meta = await this.getPrivateMeta(sessionId);
+    if (!meta || !secretToken) return false;
+    const providedHash = hashSecret(secretToken);
+    return meta.adminSecretHash === providedHash;
+  }
+}
+
+const upstashUrl = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+const upstashToken = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+const isUpstashConfigured = Boolean(upstashUrl && upstashToken);
+
 const isFirestoreConfigured = Boolean(
   process.env.FIREBASE_PROJECT_ID ||
   process.env.GOOGLE_APPLICATION_CREDENTIALS ||
   process.env.FIREBASE_CLIENT_EMAIL
 );
 
+function createDatabaseAdapter(): ISyncUpDatabase {
+  if (isUpstashConfigured && upstashUrl && upstashToken) {
+    return new UpstashRedisStore(upstashUrl, upstashToken);
+  }
+  if (isFirestoreConfigured) {
+    return new FirestoreStore();
+  }
+  return new InMemoryStore();
+}
+
 // Global singleton so hot reloads during development don't wipe data
 const globalStore = global as unknown as { __syncupDb?: ISyncUpDatabase };
 export const db: ISyncUpDatabase =
-  globalStore.__syncupDb ||
-  (globalStore.__syncupDb = isFirestoreConfigured ? new FirestoreStore() : new InMemoryStore());
+  globalStore.__syncupDb || (globalStore.__syncupDb = createDatabaseAdapter());
