@@ -750,11 +750,13 @@ export default function SessionView({ slug }: SessionViewProps) {
 
       {/* AVATAR SELECTOR: "WHO ARE YOU?" CAROUSEL */}
       <section className="px-4 mt-3">
-        <div className="bg-white border border-slate-200/80 rounded-[24px] p-3 shadow-xs">
+        <div className="bg-white border border-slate-200/80 rounded-[24px] p-3.5 shadow-xs">
           <div className="flex items-center justify-between text-xs mb-2 px-1">
             <span className="font-bold text-slate-800 flex items-center gap-1.5">
-              <Users className="w-3.5 h-3.5 text-emerald-600" />
-              <span>Voting as:</span>
+              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center">
+                1
+              </span>
+              <span>Tap Your Name to Vote:</span>
               <strong className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 font-black">
                 {currentParticipant?.name || "Select Your Name"}
               </strong>
@@ -764,7 +766,7 @@ export default function SessionView({ slug }: SessionViewProps) {
               className="text-emerald-700 font-bold hover:underline flex items-center gap-1 text-[11px]"
             >
               <Plus className="w-3 h-3" />
-              <span>I'm new</span>
+              <span>+ I'm new</span>
             </button>
           </div>
 
@@ -802,6 +804,21 @@ export default function SessionView({ slug }: SessionViewProps) {
                 </button>
               );
             })}
+          </div>
+        </div>
+      </section>
+
+      {/* 2-STEP VOTER GUIDANCE BAR */}
+      <section className="px-4 mt-2">
+        <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3 flex items-start gap-2.5 shadow-2xs">
+          <div className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black flex items-center justify-center text-[10px] shrink-0 mt-0.5">
+            2
+          </div>
+          <div className="text-xs text-emerald-950">
+            <span className="font-bold block">Next: Mark Your Free Days & Top Spots</span>
+            <p className="text-[11px] text-emerald-800 mt-0.5 leading-snug">
+              Tap dates you're free, give your <strong>★ Top Pick (2 pts)</strong>, then hit <strong>"Save My Votes"</strong> below.
+            </p>
           </div>
         </div>
       </section>
