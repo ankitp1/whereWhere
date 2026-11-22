@@ -114,6 +114,8 @@ export default function SessionView({ slug }: SessionViewProps) {
   const [objectionBooker, setObjectionBooker] = useState<string>("");
   const [objectionMode, setObjectionMode] = useState<"2_hours" | "overnight">("2_hours");
   const [showIdentityPrompt, setShowIdentityPrompt] = useState(false);
+  const [showFirstTimeOrientation, setShowFirstTimeOrientation] = useState(false);
+  const [activeVoteStage, setActiveVoteStage] = useState<"when" | "where">("when");
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [nudgeModalData, setNudgeModalData] = useState<{
     name: string;
@@ -199,7 +201,22 @@ export default function SessionView({ slug }: SessionViewProps) {
         }
       } catch (e) {}
     }
+
+    // Check if visitor has dismissed first-time orientation
+    try {
+      const dismissed = localStorage.getItem(`syncup_orientation_dismissed_${slug}`);
+      if (!dismissed) {
+        setShowFirstTimeOrientation(true);
+      }
+    } catch (e) {}
   }, [slug]);
+
+  const handleDismissOrientation = () => {
+    setShowFirstTimeOrientation(false);
+    try {
+      localStorage.setItem(`syncup_orientation_dismissed_${slug}`, "true");
+    } catch (e) {}
+  };
 
   // If host is signed in and no participant is selected, default to host identity
   useEffect(() => {
@@ -700,6 +717,14 @@ export default function SessionView({ slug }: SessionViewProps) {
             </span>
           )}
           <button
+            onClick={() => setShowFirstTimeOrientation((prev) => !prev)}
+            className="p-1.5 px-2 bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl transition active:scale-95 flex items-center gap-1 text-[11px] font-bold"
+            title="How SyncUp Works"
+          >
+            <HelpCircle className="w-3.5 h-3.5 text-slate-600" />
+            <span className="hidden sm:inline">How it works</span>
+          </button>
+          <button
             onClick={() => handleShareUpdate(isLocked ? "locked" : isObjectionWindow ? "objection" : "quorum")}
             className="p-2 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl shadow-xs transition active:scale-95 flex items-center gap-1"
             title="Share"
@@ -708,6 +733,89 @@ export default function SessionView({ slug }: SessionViewProps) {
           </button>
         </div>
       </header>
+
+      {/* FIRST-TIME VISITOR ORIENTATION CARD */}
+      {showFirstTimeOrientation && (
+        <section className="px-4 pt-3 animate-fade-in">
+          <div className="bg-gradient-to-br from-emerald-950 via-slate-900 to-slate-900 text-white rounded-[26px] p-4.5 shadow-xl border border-emerald-500/25 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-emerald-500/10 rounded-full blur-3xl pointer-events-none" />
+
+            <button
+              onClick={handleDismissOrientation}
+              className="absolute top-3.5 right-3.5 p-1.5 rounded-full bg-white/10 hover:bg-white/20 text-slate-300 hover:text-white transition"
+              title="Dismiss orientation"
+            >
+              <X className="w-4 h-4" />
+            </button>
+
+            <div className="space-y-3 relative z-10">
+              <div className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 text-[10px] font-black uppercase tracking-wider">
+                <Sparkles className="w-3 h-3 text-emerald-400" />
+                <span>Zero Signup • No Passwords • 10-Sec Decision</span>
+              </div>
+
+              <div>
+                <h2 className="text-base font-black text-white tracking-tight leading-snug">
+                  {session.participants[session.organizerParticipantId]?.name || "The organizer"} started this for{" "}
+                  <span className="text-emerald-300 capitalize">
+                    {session.slug.replace(/-[a-z0-9]+$/i, "").replace(/-/g, " ")}
+                  </span>
+                </h2>
+                <p className="text-xs text-emerald-100/90 mt-1 leading-relaxed">
+                  Instead of 40 back-and-forth messages in WhatsApp debating dates & restaurants,
+                  SyncUp locks in the day and spot in 10 seconds.
+                </p>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-2 pt-1 text-xs">
+                <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-lg bg-emerald-500 text-slate-950 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                    1
+                  </span>
+                  <div>
+                    <strong className="text-white font-bold block text-[11px]">Tap Your Name</strong>
+                    <span className="text-[10px] text-slate-300">No passwords or accounts.</span>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-lg bg-emerald-500 text-slate-950 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                    2
+                  </span>
+                  <div>
+                    <strong className="text-white font-bold block text-[11px]">Mark Free Days</strong>
+                    <span className="text-[10px] text-slate-300">Live meter finds the date.</span>
+                  </div>
+                </div>
+
+                <div className="bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-start gap-2">
+                  <span className="w-5 h-5 rounded-lg bg-emerald-500 text-slate-950 font-black text-[11px] flex items-center justify-center shrink-0 mt-0.5">
+                    3
+                  </span>
+                  <div>
+                    <strong className="text-white font-bold block text-[11px]">Pick Spots & Veto</strong>
+                    <span className="text-[10px] text-slate-300">1 dealbreaker token each.</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="pt-1 flex items-center gap-2">
+                <button
+                  onClick={() => {
+                    handleDismissOrientation();
+                    const el = document.getElementById("avatar-selector");
+                    if (el) el.scrollIntoView({ behavior: "smooth" });
+                  }}
+                  className="flex-1 py-2.5 px-4 bg-gradient-to-r from-emerald-500 to-teal-400 hover:from-emerald-400 hover:to-teal-300 text-slate-950 font-black text-xs rounded-xl transition shadow-md shadow-emerald-500/20 flex items-center justify-center gap-1.5 active:scale-[0.98]"
+                >
+                  <span>Tap to Pick Your Name & Vote (10s)</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* HUMAN-IN-THE-LOOP STATE TRANSITION BANNERS */}
       <div className="px-4 pt-3 space-y-2">
@@ -800,7 +908,7 @@ export default function SessionView({ slug }: SessionViewProps) {
       </div>
 
       {/* AVATAR SELECTOR: "WHO ARE YOU?" CAROUSEL */}
-      <section className="px-4 mt-3">
+      <section id="avatar-selector" className="px-4 mt-3">
         <div className="bg-white border border-slate-200/80 rounded-[24px] p-3.5 shadow-xs">
           {showIdentityPrompt && !currentParticipant && (
             <div className="mb-2.5 p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-xs font-bold text-amber-900 flex items-center gap-2 animate-bounce">
@@ -878,362 +986,458 @@ export default function SessionView({ slug }: SessionViewProps) {
         </div>
       </section>
 
-      {/* 2-STEP VOTER GUIDANCE BAR */}
-      <section className="px-4 mt-2">
-        <div className="bg-emerald-50/80 border border-emerald-200/80 rounded-2xl p-3 flex items-start gap-2.5 shadow-2xs">
-          <div className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black flex items-center justify-center text-[10px] shrink-0 mt-0.5">
-            2
-          </div>
-          <div className="text-xs text-emerald-950">
-            <span className="font-bold block">Next: Mark Your Free Days & Top Spots</span>
-            <p className="text-[11px] text-emerald-800 mt-0.5 leading-snug">
-              Tap dates you're free, give your <strong>★ Top Pick (2 pts)</strong>, then hit <strong>"Save My Votes"</strong> below.
-            </p>
-          </div>
-        </div>
-      </section>
-
-      {/* ---------------- STATE 1: COLLECTING (AVAILABILITY & GROUNDED VENUES) ---------------- */}
+      {/* 2-STAGE MICRO-PROGRESSIVE DISCLOSURE TABS */}
       {isCollecting && (
-        <div className="px-4 mt-4 space-y-4">
-          {/* QUORUM STATUS & EXPLAINABILITY */}
-          <section className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-[24px] p-4 shadow-lg border border-slate-800">
-            <div className="flex items-center justify-between text-xs mb-2">
-              <span className="font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Compass className="w-3.5 h-3.5 text-emerald-400" />
-                Quorum Meter
-              </span>
-              <span className="text-slate-300 font-bold">
-                {doneParticipants.length} of {quorum?.requiredVotes} votes locked
-              </span>
-            </div>
-
-            {/* Glowing progress bar */}
-            <div className="w-full bg-slate-700/80 h-2.5 rounded-full overflow-hidden mb-2.5">
-              <div
-                className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full transition-all duration-500 rounded-full"
-                style={{
-                  width: `${Math.min(100, (doneParticipants.length / (quorum?.requiredVotes || 1)) * 100)}%`,
-                }}
-              />
-            </div>
-
-            <div className="text-[11px] text-slate-300 bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-start gap-2">
-              <Info className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
-              <div>
-                <strong>How it locks:</strong> Date with {quorum?.requiredVotes}+ unvetoed votes wins. Tuesday was excluded. Grounded spots match {session.constraints.map((c) => c.label).join(", ")}.
-              </div>
-            </div>
-          </section>
-
-          {/* SECTION: CANDIDATE DATES LEAF LIST */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between px-0.5">
-              <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Mark When You Are Free</span>
-              </h2>
-              {currentParticipant?.vetoUsed ? (
-                <span className="text-[10px] text-red-600 font-bold flex items-center gap-1 bg-red-50 px-2 py-0.5 rounded-md border border-red-200">
-                  <Ban className="w-2.5 h-2.5" />
-                  Veto spent
-                </span>
-              ) : (
-                <span className="text-[10px] text-slate-500 font-medium">
-                  1 Veto Token available
+        <section className="px-4 mt-2.5">
+          <div className="bg-slate-200/80 p-1 rounded-2xl flex items-center gap-1 shadow-inner">
+            <button
+              type="button"
+              onClick={() => setActiveVoteStage("when")}
+              className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 ${
+                activeVoteStage === "when"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+              <span>1. When ({selectedSlots.length} free)</span>
+              {selectedSlots.length > 0 && (
+                <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">
+                  ✓
                 </span>
               )}
-            </div>
+            </button>
 
-            <div className="space-y-2">
-              {session.options.dateSlots.map((slot) => {
-                const isSelected = selectedSlots.includes(slot.id);
-                const isVetoed = !!slot.vetoedBy;
-                const voteCount = quorum?.slotVoteCounts[slot.id] || 0;
-                const isLeading = quorum?.leadingSlot?.id === slot.id && !isVetoed;
+            <button
+              type="button"
+              onClick={() => setActiveVoteStage("where")}
+              className={`flex-1 py-2.5 px-3 rounded-xl text-xs font-black transition flex items-center justify-center gap-1.5 ${
+                activeVoteStage === "where"
+                  ? "bg-white text-slate-900 shadow-sm"
+                  : "text-slate-600 hover:text-slate-900"
+              }`}
+            >
+              <Utensils className="w-3.5 h-3.5 text-amber-600" />
+              <span>
+                2. Where{" "}
+                {topPickVenue
+                  ? "(★ Set)"
+                  : approvedVenues.length > 0
+                  ? `(${approvedVenues.length})`
+                  : ""}
+              </span>
+              {(topPickVenue || approvedVenues.length > 0) && (
+                <span className="w-4 h-4 rounded-full bg-emerald-500 text-white flex items-center justify-center text-[10px]">
+                  ✓
+                </span>
+              )}
+            </button>
+          </div>
+        </section>
+      )}
 
-                const parts = slot.label.split(" • ");
-                const dateText = parts[0] || slot.label;
-                const timeText = parts[1] || "Evening";
-
-                return (
-                  <div
-                    key={slot.id}
-                    className={`border rounded-2xl p-3 flex items-center justify-between gap-2.5 transition ${
-                      isVetoed
-                        ? "bg-slate-100/70 border-slate-200 opacity-60"
-                        : isSelected
-                        ? "bg-emerald-50/70 border-emerald-400/80 shadow-xs"
-                        : "bg-white border-slate-200/90 shadow-xs"
-                    }`}
-                  >
-                    <div
-                      onClick={() => !isVetoed && toggleSlotAvailability(slot.id)}
-                      className="flex-1 cursor-pointer"
-                    >
-                      <div className="flex items-center gap-2 flex-wrap">
-                        <span className={`text-sm font-black ${isVetoed ? "line-through text-slate-400" : "text-slate-900"}`}>
-                          {dateText}
-                        </span>
-                        <span className="text-xs text-slate-500 font-medium">• {timeText}</span>
-                        {isLeading && (
-                          <span className="text-[10px] bg-emerald-100 text-emerald-900 font-black px-2 py-0.5 rounded-md flex items-center gap-1">
-                            <Flame className="w-3 h-3 text-emerald-600 fill-emerald-600" />
-                            Quorum Leader
-                          </span>
-                        )}
-                        {isVetoed && (
-                          <span className="text-[10px] bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-md">
-                            Vetoed by {slot.vetoedBy}
-                          </span>
-                        )}
-                      </div>
-                      <span className="text-xs text-slate-500 font-medium mt-0.5 block">
-                        {voteCount} {voteCount === 1 ? "friend free" : "friends free"}
-                      </span>
-                    </div>
-
-                    {!isVetoed && (
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {/* Veto Button */}
-                        {!currentParticipant?.vetoUsed && (
-                          <button
-                            type="button"
-                            onClick={() =>
-                              setShowVetoConfirm({
-                                type: "slot",
-                                id: slot.id,
-                                label: slot.label,
-                              })
-                            }
-                            className="p-2 text-slate-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition active:scale-95"
-                            title="Veto date"
-                          >
-                            <Ban className="w-4 h-4" />
-                          </button>
-                        )}
-
-                        {/* Tactile Toggle Button */}
-                        <button
-                          type="button"
-                          onClick={() => toggleSlotAvailability(slot.id)}
-                          className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition active:scale-95 ${
-                            isSelected
-                              ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
-                              : "bg-slate-100 hover:bg-slate-200 text-slate-700"
-                          }`}
-                        >
-                          {isSelected ? (
-                            <>
-                              <Check className="w-3.5 h-3.5 stroke-[3]" />
-                              <span>Free</span>
-                            </>
-                          ) : (
-                            <span>Can do</span>
-                          )}
-                        </button>
-                      </div>
-                    )}
-                  </div>
-                );
-              })}
-            </div>
-          </section>
-
-          {/* SECTION: GROUNDED RESTAURANTS */}
-          <section className="space-y-2">
-            <div className="flex items-center justify-between px-0.5">
-              <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
-                <Utensils className="w-3.5 h-3.5 text-emerald-600" />
-                <span>Vote on Restaurants</span>
-              </h2>
-              <button
-                type="button"
-                onClick={() => setShowCustomVenueModal(true)}
-                className="text-[11px] text-emerald-700 font-bold hover:underline flex items-center gap-1"
-              >
-                <Plus className="w-3 h-3" />
-                <span>+ Suggest a spot</span>
-              </button>
-            </div>
-
-            {session.options.venues.length === 0 ? (
-              <div className="bg-white border border-dashed border-slate-300 rounded-[24px] p-6 text-center space-y-2">
-                <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
-                  <Compass className="w-6 h-6" />
+      {/* ---------------- STATE 1: COLLECTING (2-STAGE MICRO-PROGRESSIVE DISCLOSURE) ---------------- */}
+      {isCollecting && (
+        <div className="px-4 mt-4 space-y-4">
+          {/* ================= STAGE 1: WHEN ARE YOU FREE? ================= */}
+          {activeVoteStage === "when" && (
+            <div className="space-y-4 animate-fade-in">
+              {/* QUORUM STATUS & EXPLAINABILITY */}
+              <section className="bg-gradient-to-br from-slate-900 to-slate-800 text-white rounded-[24px] p-4 shadow-lg border border-slate-800">
+                <div className="flex items-center justify-between text-xs mb-2">
+                  <span className="font-black text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+                    <Compass className="w-3.5 h-3.5 text-emerald-400" />
+                    Quorum Meter
+                  </span>
+                  <span className="text-slate-300 font-bold">
+                    {doneParticipants.length} of {quorum?.requiredVotes} votes locked
+                  </span>
                 </div>
-                <h3 className="text-sm font-bold text-slate-800">Venues Auto-Load at Quorum</h3>
-                <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
-                  As soon as any date hits quorum, SyncUp queries Google Places for top-rated spots matching your dietary filters.
-                </p>
-                <button
-                  onClick={handleFindVenues}
-                  className="mt-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition"
-                >
-                  Find Venues Now
-                </button>
-              </div>
-            ) : (
-              <div className="space-y-3">
-                {venueScores.map(({ venue, topPickVotes, approvedVotes, totalScore, isDisqualified }) => {
-                  const isTop = topPickVenue === venue.id;
-                  const isApproved = approvedVenues.includes(venue.id);
-                  const emoji = getVenueEmoji(venue.name, venue.inferredTags);
 
-                  return (
-                    <div
-                      key={venue.id}
-                      className={`border rounded-[24px] p-4 transition ${
-                        isDisqualified
-                          ? "bg-slate-100/70 border-slate-200 opacity-60"
-                          : isTop
-                          ? "bg-amber-50/80 border-amber-300 shadow-sm ring-1 ring-amber-400/20"
-                          : isApproved
-                          ? "bg-emerald-50/60 border-emerald-300"
-                          : "bg-white border-slate-200/90 shadow-xs"
-                      }`}
-                    >
-                      <div className="flex items-start justify-between gap-2.5">
-                        <div className="flex items-start gap-2.5">
-                          <span className="text-2xl mt-0.5">{emoji}</span>
-                          <div>
-                            <div className="flex items-center gap-1.5 flex-wrap">
-                              <h3 className={`text-sm font-black ${isDisqualified ? "line-through text-slate-400" : "text-slate-900"}`}>
-                                {venue.name}
-                              </h3>
-                              {venue.rating && (
-                                <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
-                                  ★ {venue.rating}
-                                </span>
-                              )}
-                              {venue.priceLevel && (
-                                <span className="text-[11px] font-semibold text-slate-500">
-                                  {venue.priceLevel}
-                                </span>
-                              )}
-                            </div>
-                            {venue.address && (
-                              <p className="text-xs text-slate-500 truncate max-w-[210px] mt-0.5">
-                                {venue.address}
-                              </p>
+                {/* Glowing progress bar */}
+                <div className="w-full bg-slate-700/80 h-2.5 rounded-full overflow-hidden mb-2.5">
+                  <div
+                    className="bg-gradient-to-r from-emerald-500 to-teal-400 h-full transition-all duration-500 rounded-full"
+                    style={{
+                      width: `${Math.min(100, (doneParticipants.length / (quorum?.requiredVotes || 1)) * 100)}%`,
+                    }}
+                  />
+                </div>
+
+                <div className="text-[11px] text-slate-300 bg-white/5 border border-white/10 rounded-xl p-2.5 flex items-start gap-2">
+                  <Info className="w-3.5 h-3.5 text-emerald-400 shrink-0 mt-0.5" />
+                  <div>
+                    <strong>How it locks:</strong> Date with {quorum?.requiredVotes}+ unvetoed votes wins. Tuesday was excluded. Grounded spots match {session.constraints.map((c) => c.label).join(", ")}.
+                  </div>
+                </div>
+              </section>
+
+              {/* CANDIDATE DATES LEAF LIST */}
+              <section className="space-y-2">
+                <div className="flex items-center justify-between px-0.5">
+                  <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Calendar className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Step 1: Mark When You Are Free</span>
+                  </h2>
+                  {currentParticipant?.vetoUsed ? (
+                    <span className="text-[10px] text-red-600 font-bold flex items-center gap-1 bg-red-50 px-2 py-0.5 rounded-md border border-red-200">
+                      <Ban className="w-2.5 h-2.5" />
+                      Veto spent
+                    </span>
+                  ) : (
+                    <span className="text-[10px] text-slate-500 font-medium">
+                      1 Veto Token available
+                    </span>
+                  )}
+                </div>
+
+                <div className="space-y-2">
+                  {session.options.dateSlots.map((slot) => {
+                    const isSelected = selectedSlots.includes(slot.id);
+                    const isVetoed = !!slot.vetoedBy;
+                    const voteCount = quorum?.slotVoteCounts[slot.id] || 0;
+                    const isLeading = quorum?.leadingSlot?.id === slot.id && !isVetoed;
+
+                    const parts = slot.label.split(" • ");
+                    const dateText = parts[0] || slot.label;
+                    const timeText = parts[1] || "Evening";
+
+                    return (
+                      <div
+                        key={slot.id}
+                        className={`border rounded-2xl p-3 flex items-center justify-between gap-2.5 transition ${
+                          isVetoed
+                            ? "bg-slate-100/70 border-slate-200 opacity-60"
+                            : isSelected
+                            ? "bg-emerald-50/70 border-emerald-400/80 shadow-xs ring-1 ring-emerald-500/20"
+                            : "bg-white border-slate-200/90 shadow-xs"
+                        }`}
+                      >
+                        <div
+                          onClick={() => !isVetoed && toggleSlotAvailability(slot.id)}
+                          className="flex-1 cursor-pointer"
+                        >
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <span className={`text-sm font-black ${isVetoed ? "line-through text-slate-400" : "text-slate-900"}`}>
+                              {dateText}
+                            </span>
+                            <span className="text-xs text-slate-500 font-medium">• {timeText}</span>
+                            {isLeading && (
+                              <span className="text-[10px] bg-emerald-100 text-emerald-900 font-black px-2 py-0.5 rounded-md flex items-center gap-1">
+                                <Flame className="w-3 h-3 text-emerald-600 fill-emerald-600" />
+                                Quorum Leader
+                              </span>
+                            )}
+                            {isVetoed && (
+                              <span className="text-[10px] bg-red-100 text-red-700 font-bold px-2 py-0.5 rounded-md">
+                                Vetoed by {slot.vetoedBy}
+                              </span>
                             )}
                           </div>
+                          <span className="text-xs text-slate-500 font-medium mt-0.5 block">
+                            {voteCount} {voteCount === 1 ? "friend free" : "friends free"}
+                          </span>
                         </div>
 
-                        {venue.mapsUrl && (
-                          <a
-                            href={venue.mapsUrl}
-                            target="_blank"
-                            rel="noopener noreferrer"
-                            className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-xl hover:bg-slate-100 transition shrink-0"
-                            title="Open Google Maps"
-                          >
-                            <ExternalLink className="w-4 h-4" />
-                          </a>
-                        )}
-                      </div>
-
-                      {/* Inferred Tags */}
-                      <div className="flex flex-wrap gap-1 mt-2.5">
-                        {venue.inferredTags.map((tag) => (
-                          <span
-                            key={tag}
-                            className="text-[10px] bg-slate-100/90 text-slate-700 px-2 py-0.5 rounded-lg font-bold"
-                          >
-                            {tag}
-                          </span>
-                        ))}
-                      </div>
-
-                      {isDisqualified && (
-                        <div className="mt-2 text-xs text-red-600 font-bold">
-                          {venue.disqualifiedReason}
-                        </div>
-                      )}
-
-                      {/* Vote Buttons */}
-                      {!isDisqualified && (
-                        <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
-                          <span className="text-xs text-slate-600 font-bold">
-                            {totalScore > 0 ? `${totalScore} pts (${topPickVotes} ★, ${approvedVotes} 👍)` : "No votes yet"}
-                          </span>
-
-                          <div className="flex items-center gap-1.5">
+                        {!isVetoed && (
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {/* Veto Button */}
                             {!currentParticipant?.vetoUsed && (
                               <button
                                 type="button"
                                 onClick={() =>
                                   setShowVetoConfirm({
-                                    type: "venue",
-                                    id: venue.id,
-                                    label: venue.name,
+                                    type: "slot",
+                                    id: slot.id,
+                                    label: slot.label,
                                   })
                                 }
-                                className="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition"
-                                title="Veto venue"
+                                className="p-2 text-slate-400 hover:text-red-600 rounded-xl hover:bg-red-50 transition active:scale-95"
+                                title="Veto date"
                               >
-                                <Ban className="w-3.5 h-3.5" />
+                                <Ban className="w-4 h-4" />
                               </button>
                             )}
 
-                            {/* Works for me */}
+                            {/* Tactile Toggle Button */}
                             <button
                               type="button"
-                              onClick={() => handleVenueVote(venue.id, "approved")}
-                              className={`text-xs px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 transition active:scale-95 ${
-                                isApproved && !isTop
-                                  ? "bg-slate-900 text-white shadow-xs"
+                              onClick={() => toggleSlotAvailability(slot.id)}
+                              className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-1.5 transition active:scale-95 ${
+                                isSelected
+                                  ? "bg-emerald-600 text-white shadow-md shadow-emerald-600/30"
                                   : "bg-slate-100 hover:bg-slate-200 text-slate-700"
                               }`}
                             >
-                              <ThumbsUp className="w-3 h-3" />
-                              <span>Works</span>
-                            </button>
-
-                            {/* Top Pick */}
-                            <button
-                              type="button"
-                              onClick={() => handleVenueVote(venue.id, "topPick")}
-                              className={`text-xs px-3 py-1.5 rounded-xl font-black flex items-center gap-1 transition active:scale-95 ${
-                                isTop
-                                  ? "bg-amber-500 text-white shadow-md shadow-amber-500/25"
-                                  : "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
-                              }`}
-                            >
-                              <Star className="w-3 h-3 fill-current" />
-                              <span>Top Pick</span>
+                              {isSelected ? (
+                                <>
+                                  <Check className="w-3.5 h-3.5 stroke-[3]" />
+                                  <span>Free</span>
+                                </>
+                              ) : (
+                                <span>Can do</span>
+                              )}
                             </button>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                  );
-                })}
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
 
-                <p className="text-[10px] text-slate-400 text-right pr-1">
-                  Powered by Google Maps Platform
-                </p>
+                {/* STAGE 1 BOTTOM ACTIONS */}
+                <div className="pt-2 space-y-2">
+                  {selectedSlots.length > 0 ? (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setActiveVoteStage("where");
+                        window.scrollTo({ top: 120, behavior: "smooth" });
+                      }}
+                      className="w-full py-3.5 px-4 bg-emerald-600 hover:bg-emerald-700 text-white font-black text-xs rounded-2xl shadow-lg shadow-emerald-600/25 flex items-center justify-center gap-2 transition active:scale-[0.98]"
+                    >
+                      <span>Next: Pick Where to Go ({session.options.venues.length || "Grounded"} spots)</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <p className="text-center text-xs text-slate-500 font-medium py-1">
+                      Tap the dates above that work for you to continue.
+                    </p>
+                  )}
+
+                  {selectedSlots.length > 0 && (
+                    <button
+                      type="button"
+                      onClick={() => submitVote()}
+                      disabled={isSubmittingVote}
+                      className="w-full text-center text-[11px] text-slate-500 hover:text-slate-800 font-bold py-1 transition"
+                    >
+                      {isSubmittingVote ? "Saving..." : `Or just save my dates for now (${selectedSlots.length} selected)`}
+                    </button>
+                  )}
+                </div>
+              </section>
+            </div>
+          )}
+
+          {/* ================= STAGE 2: WHERE SHOULD WE GO? ================= */}
+          {activeVoteStage === "where" && (
+            <div className="space-y-4 animate-fade-in">
+              <div className="bg-amber-50/80 border border-amber-200/90 rounded-2xl p-3 flex items-start gap-2.5 text-xs text-amber-950">
+                <Sparkles className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                <div>
+                  <strong className="block font-bold">Step 2: Pick Grounded Spots</strong>
+                  <p className="text-[11px] text-amber-800 mt-0.5 leading-snug">
+                    Give your <strong>★ Top Pick (2 pts)</strong> or approve spots that work. You also have 1 Veto token for dealbreakers.
+                  </p>
+                </div>
               </div>
-            )}
-          </section>
 
-          {/* SAVE VOTES BUTTON */}
-          <div className="pt-1">
-            <button
-              onClick={() => submitVote()}
-              disabled={isSubmittingVote}
-              className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-4 px-5 rounded-2xl shadow-xl shadow-emerald-600/30 active:scale-[0.98] transition text-sm tracking-tight"
-            >
-              {isSubmittingVote ? (
-                <span>Recording vote...</span>
-              ) : (
-                <>
-                  <Check className="w-4 h-4 stroke-[3]" />
-                  <span>Save My Availability & Votes</span>
-                </>
-              )}
-            </button>
-          </div>
+              {/* SECTION: GROUNDED RESTAURANTS */}
+              <section className="space-y-2">
+                <div className="flex items-center justify-between px-0.5">
+                  <h2 className="text-xs font-black text-slate-800 uppercase tracking-wider flex items-center gap-1.5">
+                    <Utensils className="w-3.5 h-3.5 text-emerald-600" />
+                    <span>Vote on Restaurants</span>
+                  </h2>
+                  <button
+                    type="button"
+                    onClick={() => setShowCustomVenueModal(true)}
+                    className="text-[11px] text-emerald-700 font-bold hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" />
+                    <span>+ Suggest a spot</span>
+                  </button>
+                </div>
+
+                {session.options.venues.length === 0 ? (
+                  <div className="bg-white border border-dashed border-slate-300 rounded-[24px] p-6 text-center space-y-2">
+                    <div className="w-12 h-12 rounded-2xl bg-emerald-50 text-emerald-600 flex items-center justify-center mx-auto">
+                      <Compass className="w-6 h-6" />
+                    </div>
+                    <h3 className="text-sm font-bold text-slate-800">Venues Auto-Load at Quorum</h3>
+                    <p className="text-xs text-slate-500 max-w-xs mx-auto leading-relaxed">
+                      As soon as any date hits quorum, SyncUp queries Google Places for top-rated spots matching your dietary filters.
+                    </p>
+                    <button
+                      onClick={handleFindVenues}
+                      className="mt-2 px-4 py-2.5 bg-emerald-600 hover:bg-emerald-700 text-white rounded-xl text-xs font-bold shadow-md shadow-emerald-600/20 active:scale-95 transition"
+                    >
+                      Find Venues Now
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {venueScores.map(({ venue, topPickVotes, approvedVotes, totalScore, isDisqualified }) => {
+                      const isTop = topPickVenue === venue.id;
+                      const isApproved = approvedVenues.includes(venue.id);
+                      const emoji = getVenueEmoji(venue.name, venue.inferredTags);
+
+                      return (
+                        <div
+                          key={venue.id}
+                          className={`border rounded-[24px] p-4 transition ${
+                            isDisqualified
+                              ? "bg-slate-100/70 border-slate-200 opacity-60"
+                              : isTop
+                              ? "bg-amber-50/80 border-amber-300 shadow-sm ring-1 ring-amber-400/20"
+                              : isApproved
+                              ? "bg-emerald-50/60 border-emerald-300"
+                              : "bg-white border-slate-200/90 shadow-xs"
+                          }`}
+                        >
+                          <div className="flex items-start justify-between gap-2.5">
+                            <div className="flex items-start gap-2.5">
+                              <span className="text-2xl mt-0.5">{emoji}</span>
+                              <div>
+                                <div className="flex items-center gap-1.5 flex-wrap">
+                                  <h3 className={`text-sm font-black ${isDisqualified ? "line-through text-slate-400" : "text-slate-900"}`}>
+                                    {venue.name}
+                                  </h3>
+                                  {venue.rating && (
+                                    <span className="text-[11px] font-bold text-amber-800 bg-amber-100 px-1.5 py-0.5 rounded-md flex items-center gap-0.5">
+                                      ★ {venue.rating}
+                                    </span>
+                                  )}
+                                  {venue.priceLevel && (
+                                    <span className="text-[11px] font-semibold text-slate-500">
+                                      {venue.priceLevel}
+                                    </span>
+                                  )}
+                                </div>
+                                {venue.address && (
+                                  <p className="text-xs text-slate-500 truncate max-w-[210px] mt-0.5">
+                                    {venue.address}
+                                  </p>
+                                )}
+                              </div>
+                            </div>
+
+                            {venue.mapsUrl && (
+                              <a
+                                href={venue.mapsUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="p-1.5 text-slate-400 hover:text-emerald-600 rounded-xl hover:bg-slate-100 transition shrink-0"
+                                title="Open Google Maps"
+                              >
+                                <ExternalLink className="w-4 h-4" />
+                              </a>
+                            )}
+                          </div>
+
+                          {/* Inferred Tags */}
+                          <div className="flex flex-wrap gap-1 mt-2.5">
+                            {venue.inferredTags.map((tag) => (
+                              <span
+                                key={tag}
+                                className="text-[10px] bg-slate-100/90 text-slate-700 px-2 py-0.5 rounded-lg font-bold"
+                              >
+                                {tag}
+                              </span>
+                            ))}
+                          </div>
+
+                          {isDisqualified && (
+                            <div className="mt-2 text-xs text-red-600 font-bold">
+                              {venue.disqualifiedReason}
+                            </div>
+                          )}
+
+                          {/* Vote Buttons */}
+                          {!isDisqualified && (
+                            <div className="mt-3 pt-2.5 border-t border-slate-100 flex items-center justify-between">
+                              <span className="text-xs text-slate-600 font-bold">
+                                {totalScore > 0 ? `${totalScore} pts (${topPickVotes} ★, ${approvedVotes} 👍)` : "No votes yet"}
+                              </span>
+
+                              <div className="flex items-center gap-1.5">
+                                {!currentParticipant?.vetoUsed && (
+                                  <button
+                                    type="button"
+                                    onClick={() =>
+                                      setShowVetoConfirm({
+                                        type: "venue",
+                                        id: venue.id,
+                                        label: venue.name,
+                                      })
+                                    }
+                                    className="p-2 text-slate-400 hover:text-red-500 rounded-xl hover:bg-red-50 transition"
+                                    title="Veto venue"
+                                  >
+                                    <Ban className="w-3.5 h-3.5" />
+                                  </button>
+                                )}
+
+                                {/* Works for me */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleVenueVote(venue.id, "approved")}
+                                  className={`text-xs px-3 py-1.5 rounded-xl font-bold flex items-center gap-1 transition active:scale-95 ${
+                                    isApproved && !isTop
+                                      ? "bg-slate-900 text-white shadow-xs"
+                                      : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                                  }`}
+                                >
+                                  <ThumbsUp className="w-3 h-3" />
+                                  <span>Works</span>
+                                </button>
+
+                                {/* Top Pick */}
+                                <button
+                                  type="button"
+                                  onClick={() => handleVenueVote(venue.id, "topPick")}
+                                  className={`text-xs px-3 py-1.5 rounded-xl font-black flex items-center gap-1 transition active:scale-95 ${
+                                    isTop
+                                      ? "bg-amber-500 text-white shadow-md shadow-amber-500/25"
+                                      : "bg-amber-50 text-amber-900 border border-amber-200 hover:bg-amber-100"
+                                  }`}
+                                >
+                                  <Star className="w-3 h-3 fill-current" />
+                                  <span>Top Pick</span>
+                                </button>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+
+                    <p className="text-[10px] text-slate-400 text-right pr-1">
+                      Powered by Google Maps Platform
+                    </p>
+                  </div>
+                )}
+
+                {/* STAGE 2 BOTTOM ACTIONS */}
+                <div className="pt-2 flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setActiveVoteStage("when")}
+                    className="py-3.5 px-4 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-2xl text-xs transition active:scale-95 shrink-0"
+                  >
+                    ← Back to Dates
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => submitVote()}
+                    disabled={isSubmittingVote}
+                    className="flex-1 flex items-center justify-center gap-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700 text-white font-black py-3.5 px-4 rounded-2xl shadow-xl shadow-emerald-600/30 active:scale-[0.98] transition text-xs tracking-tight"
+                  >
+                    {isSubmittingVote ? (
+                      <span>Saving votes...</span>
+                    ) : (
+                      <>
+                        <Check className="w-4 h-4 stroke-[3]" />
+                        <span>Save All My Votes ({selectedSlots.length} dates • {topPickVenue ? "1 top pick" : "approved"})</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+              </section>
+            </div>
+          )}
 
           {/* NUDGE UNVOTED FRIENDS */}
           <section className="bg-white border border-slate-200/80 rounded-[24px] p-4 shadow-xs space-y-2.5">
