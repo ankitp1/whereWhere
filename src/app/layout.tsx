@@ -11,19 +11,19 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  title: "SyncUp — Lock in When & Where (10 sec, zero signup)",
-  description: "Mobile-first, zero-signup group coordination web app. Resolves schedules, dietary constraints, and restaurants in 10 seconds.",
+  title: "WhenWhere — Plan with your group in one sentence (No app, zero signup)",
+  description: "Mobile-first, zero-signup group coordination. Lock in a day and spot with friends in 10 seconds without 40 messages in chat.",
   referrer: "no-referrer",
   openGraph: {
-    title: "SyncUp — Lock in When & Where (10 sec, zero signup)",
-    description: "Multiplayer group coordination for dinner, drinks, and meetups. No login required.",
+    title: "WhenWhere — Vote on When & Where (10 sec, no signup)",
+    description: "Group coordination for dinner, drinks, and meetups. No app, no login required.",
     type: "website",
-    siteName: "SyncUp",
+    siteName: "WhenWhere",
   },
   twitter: {
     card: "summary",
-    title: "SyncUp — Lock in When & Where (10 sec, zero signup)",
-    description: "Multiplayer group coordination for dinner, drinks, and meetups. No login required.",
+    title: "WhenWhere — Vote on When & Where (10 sec, no signup)",
+    description: "Group coordination for dinner, drinks, and meetups. No app, no login required.",
   },
 };
 
