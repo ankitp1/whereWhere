@@ -10,6 +10,11 @@
     "test:rules": "node scripts/test-rules.mjs",
     "test:e2e": "node scripts/test-e2e.mjs"
   },
+  "browserslist": [
+    ">0.5%",
+    "last 2 versions",
+    "not dead"
+  ],
   "dependencies": {
     "clsx": "^2.1.1",
     "firebase": "^11.4.0",
