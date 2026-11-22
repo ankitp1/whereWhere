@@ -18,6 +18,7 @@ export async function POST(
       approvedVenueIds = [],
       vetoSlotId = null,
       vetoVenueId = null,
+      vetoReason = null,
     } = body;
 
     let session = await db.getSessionBySlug(id);
@@ -66,16 +67,20 @@ export async function POST(
       // Apply veto if requested
       if (willUseVeto) {
         p.vetoUsed = true;
+        const reasonSuffix = vetoReason && typeof vetoReason === "string" && vetoReason.trim()
+          ? ` (${vetoReason.trim()})`
+          : "";
+
         if (vetoSlotId) {
           const slot = curr.options.dateSlots.find((s) => s.id === vetoSlotId);
           if (slot) {
-            slot.vetoedBy = p.name;
+            slot.vetoedBy = `${p.name}${reasonSuffix}`;
           }
         }
         if (vetoVenueId) {
           const venue = curr.options.venues.find((v) => v.id === vetoVenueId);
           if (venue) {
-            venue.disqualifiedReason = `Vetoed by ${p.name}`;
+            venue.disqualifiedReason = `Vetoed by ${p.name}${reasonSuffix}`;
           }
         }
       }

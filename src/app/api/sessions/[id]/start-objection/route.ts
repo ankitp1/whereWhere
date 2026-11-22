@@ -14,6 +14,8 @@ export async function POST(
       bookerParticipantId = null,
       slotId = null,
       venueId = null,
+      windowMode = "2_hours",
+      customHours = 2,
     } = await req.json();
 
     let session = await db.getSessionBySlug(id);
@@ -44,7 +46,21 @@ export async function POST(
     }
 
     const now = Date.now();
-    const objectionExpiresAt = new Date(now + 2 * 60 * 60 * 1000).toISOString(); // 2 hours
+    let objectionExpiresAt: string;
+
+    if (windowMode === "overnight") {
+      const target = new Date(now);
+      target.setHours(10, 0, 0, 0);
+      // Ensure at least 6 hours of overnight buffer
+      if (target.getTime() <= now + 6 * 60 * 60 * 1000) {
+        target.setDate(target.getDate() + 1);
+      }
+      objectionExpiresAt = target.toISOString();
+    } else if (windowMode === "custom" && customHours && customHours > 0) {
+      objectionExpiresAt = new Date(now + customHours * 60 * 60 * 1000).toISOString();
+    } else {
+      objectionExpiresAt = new Date(now + 2 * 60 * 60 * 1000).toISOString(); // Default 2 hours
+    }
 
     const updated = await db.updateSession(session.sessionId, (curr) => {
       curr.status = "objection_window";

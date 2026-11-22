@@ -143,11 +143,13 @@ async function runE2ETests() {
       topPickVenueId: null,
       approvedVenueIds: [],
       vetoVenueId: venue2.id, // Raj vetos venue 2
+      vetoReason: "Dietary / Allergy",
     }),
   });
   const vetoData = await vetoRes.json();
   const v2Updated = vetoData.session.options.venues.find((v) => v.id === venue2.id);
   assert.ok(v2Updated.disqualifiedReason, "Vetoed venue must be disqualified");
+  assert.ok(v2Updated.disqualifiedReason.includes("Dietary / Allergy"), "Disqualified reason must include veto reason note");
 
   // Attempting second veto should fail
   const secondVetoRes = await fetch(`${BASE_URL}/api/sessions/${slug}/vote`, {

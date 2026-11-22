@@ -104,6 +104,7 @@ export default function SessionView({ slug }: SessionViewProps) {
     id: string;
     label: string;
   } | null>(null);
+  const [vetoReason, setVetoReason] = useState("");
   const [showConflictModal, setShowConflictModal] = useState(false);
   const [conflictReason, setConflictReason] = useState("");
   const [showCustomVenueModal, setShowCustomVenueModal] = useState(false);
@@ -111,6 +112,8 @@ export default function SessionView({ slug }: SessionViewProps) {
   const [showStartObjectionModal, setShowStartObjectionModal] = useState(false);
   const [objectionTime, setObjectionTime] = useState("19:30");
   const [objectionBooker, setObjectionBooker] = useState<string>("");
+  const [objectionMode, setObjectionMode] = useState<"2_hours" | "overnight">("2_hours");
+  const [showIdentityPrompt, setShowIdentityPrompt] = useState(false);
   const [copiedText, setCopiedText] = useState<string | null>(null);
   const [nudgeModalData, setNudgeModalData] = useState<{
     name: string;
@@ -146,13 +149,18 @@ export default function SessionView({ slug }: SessionViewProps) {
     if (typeof window === "undefined") return;
 
     const hash = window.location.hash;
+    let targetPFromHash: string | null = null;
+
     if (hash) {
       const params = new URLSearchParams(hash.replace(/^#/, ""));
       const secret = params.get("admin");
-      const targetP = params.get("p");
+      targetPFromHash = params.get("p");
 
-      if (targetP) {
-        setCurrentParticipantId(targetP);
+      if (targetPFromHash) {
+        setCurrentParticipantId(targetPFromHash);
+        try {
+          localStorage.setItem(`syncup_participant_${slug}`, targetPFromHash);
+        } catch (e) {}
       }
 
       if (secret) {
@@ -170,29 +178,55 @@ export default function SessionView({ slug }: SessionViewProps) {
             }
           })
           .catch((err) => console.error("Admin claim failed:", err));
-
-        const cleanUrl = window.location.pathname + window.location.search;
-        window.history.replaceState(null, "", cleanUrl);
       }
+
+      const cleanUrl = window.location.pathname + window.location.search;
+      window.history.replaceState(null, "", cleanUrl);
     } else {
-      const saved = sessionStorage.getItem(`admin_${slug}`);
-      if (saved) {
-        setAdminToken(saved);
+      const savedAdmin = sessionStorage.getItem(`admin_${slug}`);
+      if (savedAdmin) {
+        setAdminToken(savedAdmin);
         setIsAdmin(true);
       }
     }
+
+    // If not set from URL hash, restore saved identity from localStorage
+    if (!targetPFromHash) {
+      try {
+        const savedP = localStorage.getItem(`syncup_participant_${slug}`);
+        if (savedP) {
+          setCurrentParticipantId(savedP);
+        }
+      } catch (e) {}
+    }
   }, [slug]);
 
-  // Set default active voter if none selected
+  // If host is signed in and no participant is selected, default to host identity
   useEffect(() => {
-    if (session && !currentParticipantId) {
-      const pKeys = Object.keys(session.participants);
-      if (pKeys.length > 0) {
-        const defaultId = isAdmin ? session.organizerParticipantId : pKeys[0];
-        setCurrentParticipantId(defaultId);
-      }
+    if (session && isAdmin && !currentParticipantId && session.organizerParticipantId) {
+      setCurrentParticipantId(session.organizerParticipantId);
+      try {
+        localStorage.setItem(`syncup_participant_${slug}`, session.organizerParticipantId);
+      } catch (e) {}
     }
-  }, [session, currentParticipantId, isAdmin]);
+  }, [session, isAdmin, currentParticipantId, slug]);
+
+  // Switch identity handler
+  const handleSwitchParticipant = () => {
+    setCurrentParticipantId(null);
+    try {
+      localStorage.removeItem(`syncup_participant_${slug}`);
+    } catch (e) {}
+  };
+
+  // Select identity handler
+  const handleSelectParticipant = (pId: string) => {
+    setCurrentParticipantId(pId);
+    setShowIdentityPrompt(false);
+    try {
+      localStorage.setItem(`syncup_participant_${slug}`, pId);
+    } catch (e) {}
+  };
 
   // Sync active voter's saved votes into local state
   useEffect(() => {
@@ -302,12 +336,20 @@ export default function SessionView({ slug }: SessionViewProps) {
 
   // Vote Actions
   const toggleSlotAvailability = (slotId: string) => {
+    if (!currentParticipantId) {
+      setShowIdentityPrompt(true);
+      return;
+    }
     setSelectedSlots((prev) =>
       prev.includes(slotId) ? prev.filter((id) => id !== slotId) : [...prev, slotId]
     );
   };
 
   const handleVenueVote = (venueId: string, type: "topPick" | "approved") => {
+    if (!currentParticipantId) {
+      setShowIdentityPrompt(true);
+      return;
+    }
     if (type === "topPick") {
       if (topPickVenue === venueId) {
         setTopPickVenue(null);
@@ -329,8 +371,11 @@ export default function SessionView({ slug }: SessionViewProps) {
     }
   };
 
-  const submitVote = async (vetoSlotId?: string, vetoVenueId?: string) => {
-    if (!session || !currentParticipantId) return;
+  const submitVote = async (vetoSlotId?: string, vetoVenueId?: string, reason?: string) => {
+    if (!session || !currentParticipantId) {
+      setShowIdentityPrompt(true);
+      return;
+    }
     setIsSubmittingVote(true);
     try {
       const res = await fetch(`/api/sessions/${slug}/vote`, {
@@ -343,12 +388,14 @@ export default function SessionView({ slug }: SessionViewProps) {
           approvedVenueIds: approvedVenues,
           vetoSlotId,
           vetoVenueId,
+          vetoReason: reason || vetoReason || undefined,
         }),
       });
       const data = await res.json();
       if (data.session) {
         setSession(data.session);
         setShowVetoConfirm(null);
+        setVetoReason("");
         handleCopy("Votes saved!", "save_feedback");
       } else if (data.error) {
         alert(data.error);
@@ -373,6 +420,9 @@ export default function SessionView({ slug }: SessionViewProps) {
       if (data.session) {
         setSession(data.session);
         setCurrentParticipantId(data.participantId);
+        try {
+          localStorage.setItem(`syncup_participant_${slug}`, data.participantId);
+        } catch (e) {}
         setShowJoinModal(false);
         setNewJoinName("");
       } else if (data.error) {
@@ -441,7 +491,7 @@ export default function SessionView({ slug }: SessionViewProps) {
     }
   };
 
-  // Start 2-Hour Objection Window
+  // Start Objection Window (2 Hours or Overnight)
   const handleStartObjection = async () => {
     if (!adminToken) return;
     try {
@@ -452,6 +502,7 @@ export default function SessionView({ slug }: SessionViewProps) {
           adminToken,
           exactTime: objectionTime,
           bookerParticipantId: objectionBooker || null,
+          windowMode: objectionMode,
         }),
       });
       const data = await res.json();
@@ -751,15 +802,34 @@ export default function SessionView({ slug }: SessionViewProps) {
       {/* AVATAR SELECTOR: "WHO ARE YOU?" CAROUSEL */}
       <section className="px-4 mt-3">
         <div className="bg-white border border-slate-200/80 rounded-[24px] p-3.5 shadow-xs">
+          {showIdentityPrompt && !currentParticipant && (
+            <div className="mb-2.5 p-2.5 bg-amber-50 border border-amber-300 rounded-xl text-xs font-bold text-amber-900 flex items-center gap-2 animate-bounce">
+              <AlertTriangle className="w-4 h-4 text-amber-600 shrink-0" />
+              <span>Please tap your name below first to cast your votes!</span>
+            </div>
+          )}
+
           <div className="flex items-center justify-between text-xs mb-2 px-1">
-            <span className="font-bold text-slate-800 flex items-center gap-1.5">
-              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center">
+            <span className="font-bold text-slate-800 flex items-center gap-1.5 flex-wrap">
+              <span className="w-5 h-5 rounded-full bg-emerald-600 text-white font-black text-[10px] flex items-center justify-center shrink-0">
                 1
               </span>
-              <span>Tap Your Name to Vote:</span>
-              <strong className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 font-black">
-                {currentParticipant?.name || "Select Your Name"}
-              </strong>
+              {currentParticipant ? (
+                <>
+                  <span>Voting as:</span>
+                  <strong className="text-emerald-700 bg-emerald-50 px-2 py-0.5 rounded-md border border-emerald-200/60 font-black">
+                    {currentParticipant.name}
+                  </strong>
+                  <button
+                    onClick={handleSwitchParticipant}
+                    className="text-[11px] text-slate-400 hover:text-slate-700 underline font-semibold ml-0.5"
+                  >
+                    (Switch)
+                  </button>
+                </>
+              ) : (
+                <span className="text-emerald-700 font-black">Who's Voting? Tap Your Name:</span>
+              )}
             </span>
             <button
               onClick={() => setShowJoinModal(true)}
@@ -781,10 +851,10 @@ export default function SessionView({ slug }: SessionViewProps) {
               return (
                 <button
                   key={id}
-                  onClick={() => setCurrentParticipantId(id)}
+                  onClick={() => handleSelectParticipant(id)}
                   className={`flex flex-col items-center gap-1 shrink-0 p-1.5 rounded-2xl transition active:scale-95 ${
                     isSelected
-                      ? "bg-slate-900 text-white shadow-md shadow-slate-900/20"
+                      ? "bg-slate-900 text-white shadow-md shadow-slate-900/20 ring-2 ring-emerald-500"
                       : "bg-slate-50 hover:bg-slate-100 text-slate-700 border border-slate-200/60"
                   }`}
                 >
@@ -1515,9 +1585,49 @@ export default function SessionView({ slug }: SessionViewProps) {
               </p>
             </div>
 
+            {/* Quick Reason Chips */}
+            <div className="space-y-1.5 pt-1 text-left">
+              <label className="text-[11px] font-bold text-slate-700 block">
+                Why veto? (Helps the group understand):
+              </label>
+              <div className="flex flex-wrap gap-1.5">
+                {[
+                  "Dietary / Allergy",
+                  "Parking nightmare",
+                  "Too loud / chaotic",
+                  "Been there recently",
+                  "Schedule crunch",
+                ].map((r) => (
+                  <button
+                    key={r}
+                    type="button"
+                    onClick={() => setVetoReason(r)}
+                    className={`px-2.5 py-1 rounded-lg text-[10px] font-bold transition ${
+                      vetoReason === r
+                        ? "bg-red-600 text-white shadow-xs"
+                        : "bg-slate-100 hover:bg-slate-200 text-slate-700"
+                    }`}
+                  >
+                    {r}
+                  </button>
+                ))}
+              </div>
+              <input
+                type="text"
+                placeholder="Or short custom reason..."
+                value={vetoReason}
+                onChange={(e) => setVetoReason(e.target.value)}
+                maxLength={60}
+                className="w-full p-2 text-xs rounded-xl border border-slate-200 focus:outline-none focus:ring-2 focus:ring-red-500 font-medium"
+              />
+            </div>
+
             <div className="flex items-center gap-2 pt-2">
               <button
-                onClick={() => setShowVetoConfirm(null)}
+                onClick={() => {
+                  setShowVetoConfirm(null);
+                  setVetoReason("");
+                }}
                 className="flex-1 py-3 bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold rounded-xl text-xs transition"
               >
                 Keep Token
@@ -1525,9 +1635,9 @@ export default function SessionView({ slug }: SessionViewProps) {
               <button
                 onClick={() => {
                   if (showVetoConfirm.type === "slot") {
-                    submitVote(showVetoConfirm.id, undefined);
+                    submitVote(showVetoConfirm.id, undefined, vetoReason);
                   } else {
-                    submitVote(undefined, showVetoConfirm.id);
+                    submitVote(undefined, showVetoConfirm.id, vetoReason);
                   }
                 }}
                 className="flex-1 py-3 bg-red-600 hover:bg-red-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-red-600/20"
@@ -1651,6 +1761,39 @@ export default function SessionView({ slug }: SessionViewProps) {
             </div>
 
             <div className="space-y-3">
+              {/* Duration Mode */}
+              <div>
+                <label className="text-xs font-bold text-slate-700 block mb-1">
+                  Objection Window Duration
+                </label>
+                <div className="grid grid-cols-2 gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setObjectionMode("2_hours")}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-0.5 ${
+                      objectionMode === "2_hours"
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-500"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>⚡ 2 Hours</span>
+                    <span className="text-[10px] font-normal text-slate-500">Daytime momentum</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setObjectionMode("overnight")}
+                    className={`p-2.5 rounded-xl border text-xs font-bold transition flex flex-col items-center gap-0.5 ${
+                      objectionMode === "overnight"
+                        ? "border-emerald-600 bg-emerald-50 text-emerald-950 ring-1 ring-emerald-500"
+                        : "border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    <span>🌙 Overnight</span>
+                    <span className="text-[10px] font-normal text-slate-500">Locks tomorrow 10 AM</span>
+                  </button>
+                </div>
+              </div>
+
               <div>
                 <label className="text-xs font-bold text-slate-700 block mb-1">
                   Exact Start Time ({session.timeZone.split("/")[1] || "Local"})
@@ -1682,7 +1825,15 @@ export default function SessionView({ slug }: SessionViewProps) {
               </div>
 
               <p className="text-[11px] text-slate-500 leading-relaxed bg-slate-50 p-3 rounded-xl border border-slate-200">
-                This triggers a <strong>2-hour countdown</strong>. Friends get a 1-tap "Looks good" button. If 100% confirm or nobody objects, the plan locks!
+                {objectionMode === "overnight" ? (
+                  <>
+                    Locks automatically <strong>tomorrow at 10:00 AM</strong>. Friends get a 1-tap "Looks good" button or can flag conflicts before bed/morning.
+                  </>
+                ) : (
+                  <>
+                    This triggers a <strong>2-hour countdown</strong>. Friends get a 1-tap "Looks good" button. If 100% confirm or nobody objects, the plan locks!
+                  </>
+                )}
               </p>
             </div>
 
@@ -1697,7 +1848,7 @@ export default function SessionView({ slug }: SessionViewProps) {
                 onClick={handleStartObjection}
                 className="flex-1 py-3 bg-emerald-600 hover:bg-emerald-700 text-white font-bold rounded-xl text-xs transition shadow-md shadow-emerald-600/20"
               >
-                Start 2h Window
+                {objectionMode === "overnight" ? "Start Overnight Window" : "Start 2h Window"}
               </button>
             </div>
           </div>
